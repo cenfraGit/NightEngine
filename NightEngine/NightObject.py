@@ -29,17 +29,17 @@ class NightObject:
 
         # ------------- vertex array ------------- #
 
-        self.vao = glGenVertexArrays(1)
+        # self.vao = glGenVertexArrays(1)
         # glBindVertexArray(self.vao)
         # glBindVertexArray(0)
 
     def add(self, child):
-        """adds child to object hierarchy"""
+        """adds child to object hierarchy."""
         self.children.append(child)
         child.parent = self
 
     def remove(self, child):
-        """removes child to object hierarchy"""
+        """removes child to object hierarchy."""
         self.children.remove(child)
         child.parent = None
 
@@ -54,7 +54,7 @@ class NightObject:
             return descendants
 
     def get_position(self, world=False):
-        """returns the object's position (local or world)"""
+        """returns the object's position (local or world)."""
         # ------------ world position ------------ #
         if world:
             if not self.parent:
@@ -69,6 +69,18 @@ class NightObject:
             return [self.transform.item((0, 3)),
                     self.transform.item((1, 3)),
                     self.transform.item((2, 3))]
+
+    def get_forward_vector(self):
+        """returns local z axis."""
+        return self.transform[0:3, 2]
+
+    def get_up_vector(self):
+        """returns local y axis."""
+        return self.transform[0:3, 1]
+
+    def get_right_vector(self):
+        """returns local x axis."""
+        return self.transform[0:3, 0]
 
     def set_position(self, position):
         self.transform[0, 3] = position[0]
