@@ -23,6 +23,10 @@ class NightObject:
         self.mass = 1.0
         self.physics_id = None
 
+        # --------------- program --------------- #
+
+        self.program = None
+
         # ------------- vertex array ------------- #
 
         self.vao = glGenVertexArrays(1)
