@@ -1,6 +1,7 @@
 # MeshBox.py
 
 from NightEngine.NightMesh import NightMesh
+import pybullet as p
 
 class MeshBox(NightMesh):
     def __init__(self, width=1):
@@ -39,3 +40,5 @@ class MeshBox(NightMesh):
         self.add_attribute("vertex_position", "vec3", positions)
         self.add_attribute("vertex_color",    "vec3", colors)
         self.vertex_count = len(positions)
+        self.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
+                                                        halfExtents=[width/2, width/2, width/2]))

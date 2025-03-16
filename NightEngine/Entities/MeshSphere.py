@@ -5,6 +5,7 @@
 # ------------------------------------------------------------
 
 from NightEngine.NightMesh import NightMesh
+import pybullet as p
 import math
 
 class MeshSphere(NightMesh):
@@ -53,3 +54,9 @@ class MeshSphere(NightMesh):
 
         # Store the vertex count
         self.vertex_count = len(positions)
+
+        # add collision shape
+        self.set_collision_shape(p.createCollisionShape(p.GEOM_SPHERE,
+                                                        radius=radius))
+        
+        

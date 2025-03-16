@@ -3,6 +3,7 @@
 from NightEngine.NightObject import NightObject
 from NightEngine.NightMesh import NightMesh
 from NightEngine.NightMaterial import NightMaterial
+import pybullet as p
 from OpenGL.GL import *
 
 class ObjectGrid(NightObject):
@@ -39,7 +40,9 @@ class ObjectGrid(NightObject):
         mesh.add_attribute("vertex_position", "vec3", positions)
         mesh.add_attribute("vertex_color", "vec3", colors)
         mesh.vertex_count = len(positions)
-
+        mesh.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
+                                                        halfExtents=[width/2, width/2, 0]))
+        
         material = NightMaterial(gl_draw_style=GL_LINES,
                                  gl_line_width=line_width,
                                  gl_culling=False)

@@ -136,6 +136,15 @@ class NightBase:
         for obj in descendants:
 
             # ------------------------------------------------------------
+            # init physics
+            # ------------------------------------------------------------
+
+            # take out of loop
+
+            if obj.physics_id == None:
+                obj.init_physics()
+
+            # ------------------------------------------------------------
             # update objects from physics
             # ------------------------------------------------------------
 
@@ -167,7 +176,7 @@ class NightBase:
 
             glDrawArrays(obj.material.gl_draw_style, 0, obj.mesh.vertex_count)
 
-    def set_gravity(self, x=0, y=0, z=-9.8):
+    def set_gravity(self, x=0.0, y=0.0, z=-9.8):
         """wrpper for pybullet setGravity"""
         p.setGravity(x, y, z)
 

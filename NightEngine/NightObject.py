@@ -21,14 +21,6 @@ class NightObject:
         self.parent = None
         self.children = []
 
-        # ------------ check if data ------------ #
-
-        # if this object has no mesh or material (such as scene), exit
-        # early.
-
-        if not mesh or not material:
-            return
-
         # -------------- properties -------------- #
 
         self.visible = True
@@ -37,11 +29,16 @@ class NightObject:
         self.mass = mass
         self.physics_id = None
 
-        # -------------- appearance -------------- #
-
         self.mesh = mesh
         self.material = material
-        self.vertex_count = 0
+
+        # ------------ check if data ------------ #
+
+        # if this object has no mesh or material (such as scene), exit
+        # early.
+
+        if not mesh or not material:
+            return
 
         # ------------- vertex array ------------- #
 
@@ -60,13 +57,17 @@ class NightObject:
                                              attribute_dict["data_type"])
 
     def init_physics(self):
+        # will initialize the multibody using the collision shape in
+        # mesh. if no mesh, skip.
+        if not self.mesh or self.mesh.collision_shape == None:
+            return
         position = self.get_position()
+        # switch between pybullet and engine
         position = [position[0], position[2], position[1]]
+        # create id
         self.physics_id = p.createMultiBody(
             baseMass=self.mass,
-            baseCollisionShapeIndex=p.createCollisionShape(p.GEOM_SPHERE,
-                                                           radius=1,
-                                                           halfExtents=[0.5, 0.5, 0.5]),
+            baseCollisionShapeIndex=self.mesh.collision_shape,
             basePosition=position)
 
     def move(self, keys_pressed: list, time_delta: float):
