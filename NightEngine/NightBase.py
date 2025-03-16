@@ -1,9 +1,7 @@
 # NightBase.py
 
-
 import glfw
 from OpenGL.GL import *
-
 
 class NightBase:
     def __init__(self,
