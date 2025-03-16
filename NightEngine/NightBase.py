@@ -171,4 +171,3 @@ class NightBase:
             self.fov = 1.0
         if self.fov > 90.0:
             self.fov = 90
-

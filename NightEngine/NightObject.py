@@ -2,11 +2,15 @@
 
 from NightEngine.NightMatrix import NightMatrix
 from NightEngine.NightUtils import NightUtils
+# from NightEngine.NightMesh import NightMesh
 from OpenGL.GL import *
 import numpy as np
 
 class NightObject:
-    def __init__(self, material=None):
+    def __init__(self, mesh=None, material=None):
+
+        """initializes the object by locating the mesh attributes in
+        the material program."""
 
         # ---------- initial transform ---------- #
 
@@ -16,6 +20,14 @@ class NightObject:
 
         self.parent = None
         self.children = []
+
+        # ------------ check if data ------------ #
+
+        # if this object has no mesh or material (such as scene), exit
+        # early.
+
+        if not mesh or not material:
+            return
 
         # -------------- properties -------------- #
 
@@ -33,6 +45,18 @@ class NightObject:
         # ------------- vertex array ------------- #
 
         self.vao = NightUtils.create_vao()
+
+        # ----------------- mesh ----------------- #
+
+        # for each attrib in mesh, create vbo and set attrib pointer
+        # on material program
+
+        for variable_name, attribute_dict in mesh.attributes.items():
+            vbo = NightUtils.create_vbo(attribute_dict["data"])
+            NightUtils.set_attribute_pointer(material.program,
+                                             vbo,
+                                             variable_name,
+                                             attribute_dict["data_type"])
 
     def move(self, keys_pressed: list, time_delta: float):
         # override

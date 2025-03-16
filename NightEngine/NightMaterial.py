@@ -4,7 +4,12 @@ from OpenGL.GL import *
 from NightEngine.NightUtils import NightUtils
 
 class NightMaterial:
-    def __init__(self):
+    def __init__(self,
+                 gl_draw_style=GL_TRIANGLES,
+                 gl_line_width=2,
+                 gl_point_size=2,
+                 gl_culling=True,
+                 gl_wireframe=False):
 
         # ------------------------------------------------------------
         # default shaders
@@ -42,11 +47,11 @@ class NightMaterial:
         # default draw values
         # ------------------------------------------------------------
 
-        self.gl_draw_style = GL_TRIANGLES
-        self.gl_line_width = 2
-        self.gl_point_size = 2
-        self.gl_culling = True
-        self.gl_wireframe = False
+        self.gl_draw_style = gl_draw_style
+        self.gl_line_width = gl_line_width
+        self.gl_point_size = gl_point_size
+        self.gl_culling = gl_culling
+        self.gl_wireframe = gl_wireframe
 
     def update_draw_settings(self):
 
