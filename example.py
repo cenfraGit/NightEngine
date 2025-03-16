@@ -5,6 +5,7 @@ from NightEngine.NightCamera import NightCamera
 from NightEngine.NightObject import NightObject
 from NightEngine.NightMaterial import NightMaterial
 from NightEngine.Entities.MeshBox import MeshBox
+from NightEngine.Entities.MeshSphere import MeshSphere
 from NightEngine.Entities.ObjectGrid import ObjectGrid
 from NightEngine.Entities.ObjectAxes import ObjectAxes
 
@@ -21,8 +22,11 @@ class Example(NightBase):
         self.axes = ObjectAxes(length=10, line_width=6)
         self.scene.add(self.axes)
         
-        self.cube = NightObject(MeshBox(5), NightMaterial())
-        self.scene.add(self.cube)
+        # self.cube = NightObject(MeshBox(5), NightMaterial())
+        # self.scene.add(self.cube)
+
+        self.sphere = NightObject(MeshSphere(10, 32, 32), NightMaterial())
+        self.scene.add(self.sphere)
 
     def update(self):
         self.draw_scene(self.scene, self.camera)
