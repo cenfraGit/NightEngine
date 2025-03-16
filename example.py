@@ -6,6 +6,7 @@ from NightEngine.NightObject import NightObject
 from NightEngine.NightMaterial import NightMaterial
 from NightEngine.Entities.MeshBox import MeshBox
 from NightEngine.Entities.ObjectGrid import ObjectGrid
+from NightEngine.Entities.ObjectAxes import ObjectAxes
 
 class Example(NightBase):
     def setup(self):
@@ -14,15 +15,13 @@ class Example(NightBase):
         self.camera = NightCamera()
         self.camera.set_position([0, 0, -10])
 
-        self.grid = ObjectGrid(width=100, divisions=100)
+        self.grid = ObjectGrid(width=100, divisions=100, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)
-    
-        material = NightMaterial(gl_culling=True,
-                                 gl_wireframe=False,
-                                 gl_line_width=5,
-                                 gl_point_size=5)
 
-        self.cube = NightObject(MeshBox(5), material)
+        self.axes = ObjectAxes(length=10, line_width=6)
+        self.scene.add(self.axes)
+        
+        self.cube = NightObject(MeshBox(5), NightMaterial())
         self.scene.add(self.cube)
 
     def update(self):
