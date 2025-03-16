@@ -1,0 +1,10 @@
+
+* TODO Fix object rotation from physics
+
+* TODO Load from obj
+
+* TODO Add interface between object physics properties and engine
+
+* TODO Add shadows
+
+* TODO Add textures
