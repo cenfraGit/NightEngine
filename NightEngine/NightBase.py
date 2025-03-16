@@ -55,6 +55,16 @@ class NightBase:
 
         self.keys_pressed = []
 
+        # ------------------------------------------------------------
+        # opengl states
+        # ------------------------------------------------------------
+
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_MULTISAMPLE)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glClearColor(0, 0, 0, 1)
+
     def setup(self):
         # override
         pass
@@ -80,6 +90,9 @@ class NightBase:
             self.update()
             # draw
             glfw.swap_buffers(self.window)
+
+    def _draw_scene(self, scene):
+        pass
 
     def _process_keyboard_input(self):
         """updates self.keys_pressed with currently pressed keys."""
