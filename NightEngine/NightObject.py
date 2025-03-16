@@ -1,10 +1,12 @@
 # NightObject.py
 
 from NightEngine.NightMatrix import NightMatrix
+from NightEngine.NightUtils import NightUtils
 from OpenGL.GL import *
+import numpy as np
 
 class NightObject:
-    def __init__(self):
+    def __init__(self, material=None):
 
         # ---------- initial transform ---------- #
 
@@ -23,15 +25,18 @@ class NightObject:
         self.mass = 1.0
         self.physics_id = None
 
-        # --------------- program --------------- #
+        # -------------- appearance -------------- #
 
-        self.program = None
+        self.material = material
+        self.vertex_count = 0
 
         # ------------- vertex array ------------- #
 
-        # self.vao = glGenVertexArrays(1)
-        # glBindVertexArray(self.vao)
-        # glBindVertexArray(0)
+        self.vao = NightUtils.create_vao()
+
+    def move(self, keys_pressed: list, time_delta: float):
+        # override
+        pass
 
     def add(self, child):
         """adds child to object hierarchy."""
@@ -51,16 +56,19 @@ class NightObject:
             node = nodes_to_process.pop()
             descendants.append(node)
             nodes_to_process.extend(reversed(node.children))
-            return descendants
+        return descendants
+
+    def get_world_matrix(self):
+        if self.parent == None:
+            return self.transform
+        else:
+            return self.parent.get_world_matrix() @ self.transform
 
     def get_position(self, world=False):
         """returns the object's position (local or world)."""
         # ------------ world position ------------ #
         if world:
-            if not self.parent:
-                world_transform = self.transform
-            else:
-                world_transform = self.parent._get_world_matrix() @ self.transform
+            world_transform = self.get_world_matrix()
             return [world_transform.item((0, 3)),
                     world_transform.item((1, 3)),
                     world_transform.item((2, 3))]
@@ -82,12 +90,12 @@ class NightObject:
         """returns local x axis."""
         return self.transform[0:3, 0]
 
-    def set_position(self, position):
+    def set_position(self, position:list):
         self.transform[0, 3] = position[0]
         self.transform[1, 3] = position[1]
         self.transform[2, 3] = position[2]
 
-    def set_rotation(self, rotation_matrix):
+    def set_rotation(self, rotation_matrix:np.ndarray):
         self.transform[0, 0] = rotation_matrix[0, 0]
         self.transform[0, 1] = rotation_matrix[0, 1]
         self.transform[0, 2] = rotation_matrix[0, 2]
@@ -100,7 +108,7 @@ class NightObject:
         self.transform[2, 1] = rotation_matrix[2, 1]
         self.transform[2, 2] = rotation_matrix[2, 2]
 
-    def translate(self, x, y, z, local=True):
+    def translate(self, x:float, y:float, z:float, local=True):
         m = NightMatrix.get_translation(x, y, z)
         self._apply_matrix(m, local)
 
@@ -120,7 +128,7 @@ class NightObject:
         m = NightMatrix.get_rotation_z(angle)
         self._apply_matrix(m, local)
 
-    def _apply_matrix(self, matrix, local=True):
+    def _apply_matrix(self, matrix:np.ndarray, local=True):
         if local:
             self.transform = self.transform @ matrix
         else:

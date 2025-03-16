@@ -6,6 +6,10 @@ from NightEngine.NightUtils import NightUtils
 class NightMaterial:
     def __init__(self):
 
+        # ------------------------------------------------------------
+        # default shaders
+        # ------------------------------------------------------------
+        
         code_shader_vertex = """
         #version 330 core
         uniform mat4 matrix_projection;
@@ -15,34 +19,32 @@ class NightMaterial:
         in vec3 vertex_color;
         out vec3 color;
         void main() {
-          gl_Position = projection_matrix *
-                        view_matrix *
-                        model_matrix *
-                        vec4(vertex_position, 1.0);
+          gl_Position = matrix_projection * matrix_view * matrix_model * vec4(vertex_position, 1.0);
           color = vertex_color;
         }
         """
 
         code_shader_fragment = """
         #version 330 core
-        uniform vec3 base_color;
-        uniform bool use_vertex_colors;
         in vec3 color;
         out vec4 frag_color;
         void main() {
-          vec4 temp_color = vec4(base_color, 1.0);
-          if (use_vertex_colors)
-            temp_color *= vec4(color, 1.0);
-          frag_color = temp_color;
+          frag_color = vec4(color, 1.0);
         }
         """
+
+        # ------------ create program ------------ #
 
         self.program = NightUtils.create_program(code_shader_vertex,
                                                  code_shader_fragment)
 
-        self.gl_draw_style = GL_LINES
+        # ------------------------------------------------------------
+        # default draw values
+        # ------------------------------------------------------------
+
+        self.gl_draw_style = GL_TRIANGLES
         self.gl_line_width = 2
-        self.gl_point_size = 3
+        self.gl_point_size = 2
         self.gl_culling = True
         self.gl_wireframe = False
 

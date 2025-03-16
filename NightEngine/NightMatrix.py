@@ -67,6 +67,9 @@ class NightMatrix:
 
     @staticmethod
     def get_lookat(eye, target, up):
+
+        # --------- convert to np array --------- #
+        
         eye = np.array(eye, dtype=np.float32)
         target = np.array(target, dtype=np.float32)
         up = np.array(up, dtype=np.float32)

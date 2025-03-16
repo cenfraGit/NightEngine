@@ -7,7 +7,7 @@ class NightUtils:
 
     @staticmethod
     def create_shader(shader_code, shader_type):
-        """creates shader program from code and returns reference."""
+        """creates shader program from code. returns shader reference."""
 
         # ------ create and compile shader ------ #
         
@@ -25,7 +25,7 @@ class NightUtils:
 
     @staticmethod
     def create_program(vertex_shader_code, fragment_shader_code):
-        """creates and links program from vertex and fragment shader code and returns reference."""
+        """creates and links program from shader code. returns program reference."""
 
         # ------------ create shaders ------------ #
         
