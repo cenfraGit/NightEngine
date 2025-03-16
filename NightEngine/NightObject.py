@@ -2,12 +2,12 @@
 
 from NightEngine.NightMatrix import NightMatrix
 from NightEngine.NightUtils import NightUtils
-# from NightEngine.NightMesh import NightMesh
+import pybullet as p
 from OpenGL.GL import *
 import numpy as np
 
 class NightObject:
-    def __init__(self, mesh=None, material=None):
+    def __init__(self, mesh=None, material=None, mass=0):
 
         """initializes the object by locating the mesh attributes in
         the material program."""
@@ -34,7 +34,7 @@ class NightObject:
         self.visible = True
         self.collisions = True
         
-        self.mass = 1.0
+        self.mass = mass
         self.physics_id = None
 
         # -------------- appearance -------------- #
@@ -58,6 +58,16 @@ class NightObject:
                                              vbo,
                                              variable_name,
                                              attribute_dict["data_type"])
+
+    def init_physics(self):
+        position = self.get_position()
+        position = [position[0], position[2], position[1]]
+        self.physics_id = p.createMultiBody(
+            baseMass=self.mass,
+            baseCollisionShapeIndex=p.createCollisionShape(p.GEOM_SPHERE,
+                                                           radius=1,
+                                                           halfExtents=[0.5, 0.5, 0.5]),
+            basePosition=position)
 
     def move(self, keys_pressed: list, time_delta: float):
         # override

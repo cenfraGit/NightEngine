@@ -15,17 +15,20 @@ class Example(NightBase):
         self.scene = NightObject()
         self.camera = NightCamera()
         self.camera.set_position([0, 0, -10])
+        self.set_gravity()
 
         self.grid = ObjectGrid(width=100, divisions=100, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)
 
-        self.axes = ObjectAxes(length=10, line_width=6)
-        self.scene.add(self.axes)
+        # self.axes = ObjectAxes(length=10, line_width=6)
+        # self.scene.add(self.axes)
         
         # self.cube = NightObject(MeshBox(5), NightMaterial())
         # self.scene.add(self.cube)
 
-        self.sphere = NightObject(MeshSphere(10, 32, 32), NightMaterial())
+        self.sphere = NightObject(MeshSphere(4, 32, 32), NightMaterial(), 2)
+        self.sphere.set_position([0, 40, 0])
+        self.sphere.init_physics()
         self.scene.add(self.sphere)
 
     def update(self):

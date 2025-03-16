@@ -6,6 +6,8 @@ from OpenGL.GL import *
 from NightEngine.NightObject import NightObject
 from NightEngine.NightUtils import NightUtils
 from NightEngine.NightCamera import NightCamera
+from scipy.spatial.transform import Rotation as R
+import pybullet as p
 
 class NightBase:
     def __init__(self,
@@ -72,6 +74,12 @@ class NightBase:
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glClearColor(0, 0.1, 0, 1)
 
+        # ------------------------------------------------------------
+        # init pybullet
+        # ------------------------------------------------------------
+
+        p.connect(p.DIRECT)
+
     def setup(self):
         # override
         pass
@@ -91,6 +99,9 @@ class NightBase:
             self.time_delta = self.time_current - self.time_last
             self.time_last = self.time_current
             self.time += self.time_delta
+            # step physics simulation
+            p.setTimeStep(self.time_delta)
+            p.stepSimulation()
             # process input
             glfw.poll_events()
             self._process_keyboard_input()
@@ -124,6 +135,24 @@ class NightBase:
 
         for obj in descendants:
 
+            # ------------------------------------------------------------
+            # update objects from physics
+            # ------------------------------------------------------------
+
+            if obj.physics_id != None:
+
+                # update physics
+                pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
+                # rotation = R.from_quat(orn)
+                # rotation_matrix = rotation.as_matrix()
+
+                pos = [pos[0], pos[2], pos[1]]
+                # rotation_matrix = rotation_matrix[[0, 2, 1], :]
+                # rotation_matrix[:, 2] *= -1
+
+                obj.set_position(pos)
+                # obj.set_rotation(rotation_matrix)
+
             if not obj.visible:
                 continue
             
@@ -137,6 +166,10 @@ class NightBase:
             obj.material.update_draw_settings()
 
             glDrawArrays(obj.material.gl_draw_style, 0, obj.mesh.vertex_count)
+
+    def set_gravity(self, x=0, y=0, z=-9.8):
+        """wrpper for pybullet setGravity"""
+        p.setGravity(x, y, z)
 
     def _process_keyboard_input(self):
         """updates self.keys_pressed with currently pressed keys."""
@@ -167,5 +200,5 @@ class NightBase:
         self.fov -= yoffset;
         if self.fov < 1.0:
             self.fov = 1.0
-        if self.fov > 90.0:
-            self.fov = 90
+        if self.fov > 110.0:
+            self.fov = 110

@@ -8,7 +8,7 @@ import glfw
 
 class NightCamera(NightObject):
     def __init__(self,
-                 fov=70,
+                 fov=85,
                  aspect_ratio=1,
                  near=0.1,
                  far=1000):
