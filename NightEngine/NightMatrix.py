@@ -64,3 +64,41 @@ class NightMatrix:
                          [0,   d, 0,  0],
                          [0,   0, b,  c],
                          [0,   0, -1, 0]], dtype=np.float32)
+
+    @staticmethod
+    def get_lookat(eye, target, up):
+        eye = np.array(eye, dtype=np.float32)
+        target = np.array(target, dtype=np.float32)
+        up = np.array(up, dtype=np.float32)
+
+        # ---------- calculate forward ---------- #
+        
+        forward = target - eye
+        forward /= np.linalg.norm(forward)
+
+        # ----------- calculate right ----------- #
+        
+        right = np.cross(forward, up)
+        right /= np.linalg.norm(right)
+
+        # ---------- calculate true up ---------- #
+        
+        true_up = np.cross(right, forward)
+
+        # --------------- matrices --------------- #
+        
+        rotation = np.array([
+            [right[0],    right[1],    right[2],    0],
+            [true_up[0],  true_up[1],  true_up[2],  0],
+            [-forward[0], -forward[1], -forward[2], 0],
+            [0,           0,           0,           1]
+        ], dtype=np.float32)
+
+        translation = np.array([
+            [1, 0, 0, -eye[0]],
+            [0, 1, 0, -eye[1]],
+            [0, 0, 1, -eye[2]],
+            [0, 0, 0, 1]
+        ], dtype=np.float32)
+        
+        return rotation @ translation
