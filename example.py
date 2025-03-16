@@ -14,7 +14,7 @@ class Example(NightBase):
         self.camera = NightCamera()
         self.camera.set_position([0, 0, -10])
 
-        self.grid = ObjectGrid()
+        self.grid = ObjectGrid(width=100, divisions=100)
         self.scene.add(self.grid)
     
         material = NightMaterial(gl_culling=True,

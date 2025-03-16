@@ -72,10 +72,10 @@ class NightCamera(NightObject):
                 self.translate(-amount_movement, 0, 0)
             # up
             if key == glfw.KEY_SPACE:
-                self.translate(0, amount_movement, 0)
+                self.translate(0, amount_movement, 0, local=False)
             # down
             if key == glfw.KEY_LEFT_SHIFT:
-                self.translate(0, -amount_movement, 0)
+                self.translate(0, -amount_movement, 0, local=False)
             # turn right
             if key == glfw.KEY_RIGHT:
                 self.yaw -= amount_rotation
