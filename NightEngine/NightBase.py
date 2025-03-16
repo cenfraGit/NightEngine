@@ -58,7 +58,7 @@ class NightBase:
         # ---------------- camera ---------------- #
 
         self.fov = 70
-        self.aspect_ratio = 1
+        self.aspect_ratio = width / height
         self.near = 0.1
         self.far = 1000
 
@@ -136,9 +136,7 @@ class NightBase:
 
             obj.material.update_draw_settings()
 
-            # glDrawArrays(obj.material.gl_draw_style, 0, 8)
-            # glDrawArrays(GL_POINTS, 0, 8)
-            glDrawArrays(GL_TRIANGLES, 0, 36)
+            glDrawArrays(obj.material.gl_draw_style, 0, obj.mesh.vertex_count)
 
     def _process_keyboard_input(self):
         """updates self.keys_pressed with currently pressed keys."""

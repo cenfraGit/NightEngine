@@ -1,10 +1,11 @@
-# box.py
+# MeshBox.py
 
-from NightEngine.NightMaterial import NightMaterial
-from NightEngine.NightObject import NightObject
+from NightEngine.NightMesh import NightMesh
 
-class Box(NightObject):
-    def __init__(self, material, width=1):
+class MeshBox(NightMesh):
+    def __init__(self, width=1):
+
+        super().__init__()
 
         corner0 = [-width/2, -width/2, -width/2]
         corner1 = [ width/2, -width/2, -width/2]
@@ -15,9 +16,9 @@ class Box(NightObject):
         corner6 = [-width/2,  width/2,  width/2]
         corner7 = [ width/2,  width/2,  width/2]
         
-        # color_x_positive, color_x_negative = [1, 0.5, 0.5], [0.5, 0, 0]
-        # color_y_positive, color_y_negative = [0.5, 1, 0.5], [0, 0.5, 0]
-        # color_z_positive, color_z_negative = [0.5, 0.5, 1], [0, 0, 0.5]
+        color_x_positive, color_x_negative = [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]
+        color_y_positive, color_y_negative = [0.0, 0.0, 0.5], [0.5, 0.5, 0.0]
+        color_z_positive, color_z_negative = [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]
 
         positions = [
             corner5, corner1, corner3, corner5, corner3, corner7,
@@ -28,5 +29,13 @@ class Box(NightObject):
             corner1, corner0, corner2, corner1, corner2, corner3
         ]
 
-        
+        colors = ([color_x_positive]*6 +
+                  [color_x_negative]*6 +
+                  [color_y_positive]*6 +
+                  [color_y_negative]*6 +
+                  [color_z_positive]*6 +
+                  [color_z_negative]*6)
 
+        self.add_attribute("vertex_position", "vec3", positions)
+        self.add_attribute("vertex_color",    "vec3", colors)
+        self.vertex_count = len(positions)

@@ -39,6 +39,7 @@ class NightObject:
 
         # -------------- appearance -------------- #
 
+        self.mesh = mesh
         self.material = material
         self.vertex_count = 0
 
