@@ -4,7 +4,8 @@ from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.NightObject import NightObject
 from NightEngine.NightMaterial import NightMaterial
-from NightEngine.entities.MeshBox import MeshBox
+from NightEngine.Entities.MeshBox import MeshBox
+from NightEngine.Entities.ObjectGrid import ObjectGrid
 
 class Example(NightBase):
     def setup(self):
@@ -12,6 +13,9 @@ class Example(NightBase):
         self.scene = NightObject()
         self.camera = NightCamera()
         self.camera.set_position([0, 0, -10])
+
+        self.grid = ObjectGrid()
+        self.scene.add(self.grid)
     
         material = NightMaterial(gl_culling=True,
                                  gl_wireframe=False,
