@@ -11,8 +11,8 @@ import pybullet as p
 
 class NightBase:
     def __init__(self,
-                 width=800,
-                 height=600,
+                 width=1200,
+                 height=800,
                  title="NightEngine"):
 
         # ------------------------------------------------------------
@@ -64,6 +64,8 @@ class NightBase:
         self.near = 0.1
         self.far = 1000
 
+        self._scene = None
+
         # ------------------------------------------------------------
         # opengl states
         # ------------------------------------------------------------
@@ -92,6 +94,12 @@ class NightBase:
         """runs the setup and engine loop."""
         # run setup
         self.setup()
+        if not self._scene:
+            raise Exception("run: scene not created. run create_scene.")
+        # init physics
+        descendants = self._scene.get_descendants(include_self=False)
+        for obj in descendants:
+            obj.init_physics()
         # run loop
         while not glfw.window_should_close(self.window):
             # calculate time
@@ -104,13 +112,12 @@ class NightBase:
             p.stepSimulation()
             # process input
             glfw.poll_events()
-            self._process_keyboard_input()
             # update scene
             self.update()
             # draw
             glfw.swap_buffers(self.window)
 
-    def draw_scene(self, scene: NightObject, camera: NightCamera):
+    def draw_scene(self, camera: NightCamera):
         """draws a scene from a camera perspective."""
 
         # ------------------------------------------------------------
@@ -123,7 +130,7 @@ class NightBase:
         # update camera
         # ------------------------------------------------------------
 
-        camera.move(self.keys_pressed, self.time_delta)
+        camera.move(self.window, self.time_delta)
         camera.update(fov=self.fov, aspect_ratio=self.aspect_ratio,
                       near=self.near, far=self.far)
 
@@ -131,40 +138,30 @@ class NightBase:
         # draw objects
         # ------------------------------------------------------------
 
-        descendants = scene.get_descendants(include_self=False)
+        descendants = self._scene.get_descendants(include_self=False)
 
         for obj in descendants:
 
-            # ------------------------------------------------------------
-            # init physics
-            # ------------------------------------------------------------
-
-            # take out of loop
-
-            if obj.physics_id == None:
-                obj.init_physics()
+            if not obj.visible:
+                continue
 
             # ------------------------------------------------------------
             # update objects from physics
             # ------------------------------------------------------------
 
             if obj.physics_id != None:
-
-                # update physics
+                # get pos and orientation
                 pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
-                # rotation = R.from_quat(orn)
-                # rotation_matrix = rotation.as_matrix()
-
+                # position
                 pos = [pos[0], pos[2], pos[1]]
-                # rotation_matrix = rotation_matrix[[0, 2, 1], :]
-                # rotation_matrix[:, 2] *= -1
-
                 obj.set_position(pos)
-                # obj.set_rotation(rotation_matrix)
-
-            if not obj.visible:
-                continue
-            
+                # rotation
+                rotation = R.from_quat(orn)
+                rotation_matrix = rotation.as_matrix()
+                rotation_matrix = rotation_matrix[[0, 2, 1], :]
+                rotation_matrix[:, 2] *= -1 # flip determinant so inside out
+                obj.set_rotation(rotation_matrix)
+                
             glUseProgram(obj.material.program)
             glBindVertexArray(obj.vao)
             
@@ -176,25 +173,13 @@ class NightBase:
 
             glDrawArrays(obj.material.gl_draw_style, 0, obj.mesh.vertex_count)
 
+    def create_scene(self):
+        self._scene = NightObject()
+        return self._scene
+
     def set_gravity(self, x=0.0, y=0.0, z=-9.8):
         """wrpper for pybullet setGravity"""
         p.setGravity(x, y, z)
-
-    def _process_keyboard_input(self):
-        """updates self.keys_pressed with currently pressed keys."""
-        # scanned keys
-        keys_to_check = [
-            glfw.KEY_ESCAPE, glfw.KEY_W, glfw.KEY_S, glfw.KEY_A,
-            glfw.KEY_D, glfw.KEY_SPACE, glfw.KEY_LEFT_SHIFT,
-            glfw.KEY_RIGHT, glfw.KEY_LEFT, glfw.KEY_UP, glfw.KEY_DOWN]
-        # start with empty list
-        self.keys_pressed = []
-        for key in keys_to_check:
-            if glfw.get_key(self.window, key) == glfw.PRESS:
-                if key == glfw.KEY_ESCAPE:
-                    glfw.set_window_should_close(self.window, True)
-                else:
-                    self.keys_pressed.append(key)
         
     def _callback_framebuffer_size(self, window, width, height):
         """updates viewport and recalculates camera aspect ratio."""

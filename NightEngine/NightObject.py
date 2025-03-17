@@ -2,9 +2,10 @@
 
 from NightEngine.NightMatrix import NightMatrix
 from NightEngine.NightUtils import NightUtils
-import pybullet as p
 from OpenGL.GL import *
 import numpy as np
+import pybullet as p
+import glfw
 
 class NightObject:
     def __init__(self, mesh=None, material=None, mass=0):
@@ -61,6 +62,9 @@ class NightObject:
         # mesh. if no mesh, skip.
         if not self.mesh or self.mesh.collision_shape == None:
             return
+        # if already initialized
+        if self.physics_id != None:
+            return
         position = self.get_position()
         # switch between pybullet and engine
         position = [position[0], position[2], position[1]]
@@ -70,7 +74,10 @@ class NightObject:
             baseCollisionShapeIndex=self.mesh.collision_shape,
             basePosition=position)
 
-    def move(self, keys_pressed: list, time_delta: float):
+    def check_pressed(self, window, glfw_key):
+        return glfw.get_key(window, glfw_key) == glfw.PRESS
+
+    def move(self, window, time_delta: float):
         # override
         pass
 
@@ -100,19 +107,24 @@ class NightObject:
         else:
             return self.parent.get_world_matrix() @ self.transform
 
-    def get_position(self, world=False):
+    def get_position(self, pybullet=False, world=False):
         """returns the object's position (local or world)."""
         # ------------ world position ------------ #
         if world:
             world_transform = self.get_world_matrix()
-            return [world_transform.item((0, 3)),
-                    world_transform.item((1, 3)),
-                    world_transform.item((2, 3))]
+            pos = [world_transform.item((0, 3)),
+                   world_transform.item((1, 3)),
+                   world_transform.item((2, 3))]
         # ------ local (relative to parent) ------ #
         else:
-            return [self.transform.item((0, 3)),
-                    self.transform.item((1, 3)),
-                    self.transform.item((2, 3))]
+            pos = [self.transform.item((0, 3)),
+                   self.transform.item((1, 3)),
+                   self.transform.item((2, 3))]
+        # --------------- pybullet --------------- #
+        if pybullet:
+            return [pos[0], pos[2], pos[1]]
+        return pos
+        
 
     def get_forward_vector(self):
         """returns local z axis."""

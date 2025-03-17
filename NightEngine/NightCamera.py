@@ -18,7 +18,7 @@ class NightCamera(NightObject):
         # -------------- properties -------------- #
 
         self.speed_movement = 10
-        self.speed_rotation = 100
+        self.speed_rotation = 200
 
         self.fov = fov
         self.aspect_ratio = aspect_ratio
@@ -51,47 +51,49 @@ class NightCamera(NightObject):
                                                              self.near,
                                                              self.far)
 
-    def move(self, keys_pressed: list, time_delta: float):
+    def move(self, window, time_delta: float):
         """default camera movement configuration."""
 
         amount_movement = self.speed_movement * time_delta
         amount_rotation = self.speed_rotation * time_delta
 
-        for key in keys_pressed:
-            # forward
-            if key == glfw.KEY_W:
-                self.translate(0, 0, amount_movement)
-            # backward
-            if key == glfw.KEY_S:
-                self.translate(0, 0, -amount_movement)
-            # left
-            if key == glfw.KEY_A:
-                self.translate(amount_movement, 0, 0)
-            # right
-            if key == glfw.KEY_D:
-                self.translate(-amount_movement, 0, 0)
-            # up
-            if key == glfw.KEY_SPACE:
-                self.translate(0, amount_movement, 0, local=False)
-            # down
-            if key == glfw.KEY_LEFT_SHIFT:
-                self.translate(0, -amount_movement, 0, local=False)
-            # turn right
-            if key == glfw.KEY_RIGHT:
-                self.yaw -= amount_rotation
-            # turn left
-            if key == glfw.KEY_LEFT:
-                self.yaw += amount_rotation
-            # turn up
-            if key == glfw.KEY_UP:
-                self.pitch += amount_rotation / 1.4
-                if self.pitch > 89.0:
-                    self.pitch = 89.0
-            # turn down
-            if key == glfw.KEY_DOWN:
-                self.pitch -= amount_rotation / 1.4
-                if self.pitch < -89.0:
-                    self.pitch = -89.0
+        # exit
+        if self.check_pressed(window, glfw.KEY_ESCAPE):
+            glfw.set_window_should_close(window, True)
+        # forward
+        if self.check_pressed(window, glfw.KEY_W):
+            self.translate(0, 0, amount_movement)
+        # # backward
+        if self.check_pressed(window, glfw.KEY_S):
+            self.translate(0, 0, -amount_movement)
+        # left
+        if self.check_pressed(window, glfw.KEY_A):
+            self.translate(amount_movement, 0, 0)
+        # right
+        if self.check_pressed(window, glfw.KEY_D):
+            self.translate(-amount_movement, 0, 0)
+        # up
+        if self.check_pressed(window, glfw.KEY_SPACE):
+            self.translate(0, amount_movement, 0, local=False)
+        # down
+        if self.check_pressed(window, glfw.KEY_LEFT_SHIFT):
+            self.translate(0, -amount_movement, 0, local=False)
+        # turn right
+        if self.check_pressed(window, glfw.KEY_RIGHT):
+            self.yaw -= amount_rotation
+        # turn left
+        if self.check_pressed(window, glfw.KEY_LEFT):
+            self.yaw += amount_rotation
+        # turn up
+        if self.check_pressed(window, glfw.KEY_UP):
+            self.pitch += amount_rotation / 1.4
+            if self.pitch > 89.0:
+                self.pitch = 89.0
+        # turn down
+        if self.check_pressed(window, glfw.KEY_DOWN):
+            self.pitch -= amount_rotation / 1.4
+            if self.pitch < -89.0:
+                self.pitch = -89.0
 
         front_x = math.cos(math.radians(self.yaw)) * math.cos(math.radians(self.pitch))
         front_y = math.sin(math.radians(self.pitch))

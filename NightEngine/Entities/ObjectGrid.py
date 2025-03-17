@@ -23,16 +23,16 @@ class ObjectGrid(NightObject):
         # ------------ vertical lines ------------ #
 
         for x in values:
-            positions.append([x, 0, -width/2])
-            positions.append([x, 0,  width/2])
+            positions.append([x, -width/2, 0])
+            positions.append([x, width/2, 0])
             colors.append(color)
             colors.append(color)
 
         # ----------- horizontal lines ----------- #
 
         for y in values:
-            positions.append([-width/2, 0, y])
-            positions.append([ width/2, 0, y])
+            positions.append([-width/2, y, 0])
+            positions.append([ width/2, y, 0])
             colors.append(color)
             colors.append(color)
         
