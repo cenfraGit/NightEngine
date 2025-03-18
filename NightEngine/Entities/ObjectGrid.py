@@ -20,19 +20,15 @@ class ObjectGrid(NightObject):
         for n in range(divisions + 1):
             values.append(-width/2 + n*(width / divisions))
 
-        # ------------ vertical lines ------------ #
-
         for x in values:
-            positions.append([x, -width/2, 0])
-            positions.append([x, width/2, 0])
+            positions.append([x, 0, -width/2])
+            positions.append([x, 0,  width/2])
             colors.append(color)
             colors.append(color)
 
-        # ----------- horizontal lines ----------- #
-
-        for y in values:
-            positions.append([-width/2, y, 0])
-            positions.append([ width/2, y, 0])
+        for z in values:
+            positions.append([-width/2, 0, z])
+            positions.append([ width/2, 0, z])
             colors.append(color)
             colors.append(color)
         
@@ -41,7 +37,7 @@ class ObjectGrid(NightObject):
         mesh.add_attribute("vertex_color", "vec3", colors)
         mesh.vertex_count = len(positions)
         mesh.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
-                                                        halfExtents=[width/2, width/2, 0]))
+                                                        halfExtents=[width/2, 0, width/2]))
         
         material = NightMaterial(gl_draw_style=GL_LINES,
                                  gl_line_width=line_width,

@@ -1,6 +1,0 @@
-
-* TODO Add shadows
-
-* TODO Load from obj
-
-* TODO Add textures

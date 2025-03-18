@@ -4,18 +4,18 @@ from NightEngine.NightMesh import NightMesh
 import pybullet as p
 
 class MeshBox(NightMesh):
-    def __init__(self, width=1):
+    def __init__(self, width=1, height=1, depth=1):
 
         super().__init__()
 
-        corner0 = [-width/2, -width/2, -width/2]
-        corner1 = [ width/2, -width/2, -width/2]
-        corner2 = [-width/2,  width/2, -width/2]
-        corner3 = [ width/2,  width/2, -width/2]
-        corner4 = [-width/2, -width/2,  width/2]
-        corner5 = [ width/2, -width/2,  width/2]
-        corner6 = [-width/2,  width/2,  width/2]
-        corner7 = [ width/2,  width/2,  width/2]
+        corner0 = [-width/2, -height/2, -depth/2]
+        corner1 = [ width/2, -height/2, -depth/2]
+        corner2 = [-width/2,  height/2, -depth/2]
+        corner3 = [ width/2,  height/2, -depth/2]
+        corner4 = [-width/2, -height/2,  depth/2]
+        corner5 = [ width/2, -height/2,  depth/2]
+        corner6 = [-width/2,  height/2,  depth/2]
+        corner7 = [ width/2,  height/2,  depth/2]
         
         color_x_positive, color_x_negative = [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]
         color_y_positive, color_y_negative = [0.0, 0.0, 0.5], [0.5, 0.5, 0.0]
@@ -41,4 +41,4 @@ class MeshBox(NightMesh):
         self.add_attribute("vertex_color",    "vec3", colors)
         self.vertex_count = len(positions)
         self.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
-                                                        halfExtents=[width/2, width/2, width/2]))
+                                                        halfExtents=[width/2, height/2, depth/2]))

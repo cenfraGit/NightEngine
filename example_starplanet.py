@@ -11,14 +11,14 @@ class Example(NightBase):
     def setup(self):
         self.scene = self.create_scene()
         self.camera = NightCamera()
-        self.camera.set_position([0, 20, -40])
+        self.camera.set_position([0, 20, 40])
         self.set_gravity(0, 0, 0)
 
-        self.star = NightObject(MeshSphere(10, 32, 32), NightMaterial(gl_wireframe=False, gl_culling=False), mass=30)
+        self.star = NightObject(MeshSphere(10, 32), NightMaterial(gl_wireframe=False, gl_culling=False), mass=30)
         self.star.set_position([0, 0, 0])
         self.scene.add(self.star)
 
-        self.planet = NightObject(MeshSphere(3, 32, 32), NightMaterial(gl_wireframe=False, gl_culling=False), mass=1)
+        self.planet = NightObject(MeshSphere(3, 32), NightMaterial(gl_wireframe=False, gl_culling=False), mass=1)
         self.planet.set_position([40, 0, 0])
         self.scene.add(self.planet)
 
@@ -32,7 +32,7 @@ class Example(NightBase):
         p.changeDynamics(self.planet.physics_id, -1, linearDamping=0, angularDamping=0)
 
         if not self.initial_velocity:
-            p.resetBaseVelocity(self.planet.physics_id, linearVelocity=[0, 5, 0])
+            p.resetBaseVelocity(self.planet.physics_id, linearVelocity=[0, 0, 5])
             self.initial_velocity = True
             
         G = 30

@@ -26,7 +26,7 @@ class NightCamera(NightObject):
         self.far = far
 
         self.pitch = 0
-        self.yaw = 0
+        self.yaw = -90
 
         self.matrix_projection = NightMatrix.get_perspective(fov, aspect_ratio, near, far)
         self.matrix_view = NightMatrix.get_identity()
@@ -63,7 +63,7 @@ class NightCamera(NightObject):
         # forward
         if self.check_pressed(window, glfw.KEY_W):
             self.translate(0, 0, amount_movement)
-        # # backward
+        # backward
         if self.check_pressed(window, glfw.KEY_S):
             self.translate(0, 0, -amount_movement)
         # left
@@ -80,10 +80,10 @@ class NightCamera(NightObject):
             self.translate(0, -amount_movement, 0, local=False)
         # turn right
         if self.check_pressed(window, glfw.KEY_RIGHT):
-            self.yaw -= amount_rotation
+            self.yaw += amount_rotation
         # turn left
         if self.check_pressed(window, glfw.KEY_LEFT):
-            self.yaw += amount_rotation
+            self.yaw -= amount_rotation
         # turn up
         if self.check_pressed(window, glfw.KEY_UP):
             self.pitch += amount_rotation / 1.4
@@ -98,10 +98,9 @@ class NightCamera(NightObject):
         front_x = math.cos(math.radians(self.yaw)) * math.cos(math.radians(self.pitch))
         front_y = math.sin(math.radians(self.pitch))
         front_z = math.sin(math.radians(self.yaw)) * math.cos(math.radians(self.pitch))
-        # front = [front_x, front_y, front_z]
-        front = [front_z, front_y, front_x] # ?
-        # normalize
-        front = [f / math.sqrt(sum([c**2 for c in front])) for f in front]
+        front = np.array([front_x, front_y, front_z])
+        front /= np.linalg.norm(front)
+        
         self.transform[0:3, 2] = front
 
         # update right and up

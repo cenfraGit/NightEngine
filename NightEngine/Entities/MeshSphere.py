@@ -9,22 +9,22 @@ import pybullet as p
 import math
 
 class MeshSphere(NightMesh):
-    def __init__(self, radius=1, lat_segments=16, lon_segments=16):
+    def __init__(self, radius=1, segments=16):
         super().__init__()
 
         positions = []  # List to hold vertex positions
         colors = []     # List to hold vertex colors
 
         # Generate vertices for triangles
-        for lat in range(lat_segments):  # Latitude: 0 to lat_segments - 1
-            theta0 = math.pi * lat / lat_segments          # Starting latitude angle
-            theta1 = math.pi * (lat + 1) / lat_segments    # Ending latitude angle
+        for lat in range(segments):  # Latitude: 0 to segments - 1
+            theta0 = math.pi * lat / segments          # Starting latitude angle
+            theta1 = math.pi * (lat + 1) / segments    # Ending latitude angle
             sin_theta0, cos_theta0 = math.sin(theta0), math.cos(theta0)
             sin_theta1, cos_theta1 = math.sin(theta1), math.cos(theta1)
 
-            for lon in range(lon_segments):  # Longitude: 0 to lon_segments - 1
-                phi0 = 2 * math.pi * lon / lon_segments          # Starting longitude angle
-                phi1 = 2 * math.pi * (lon + 1) / lon_segments    # Ending longitude angle
+            for lon in range(segments):  # Longitude: 0 to segments - 1
+                phi0 = 2 * math.pi * lon / segments          # Starting longitude angle
+                phi1 = 2 * math.pi * (lon + 1) / segments    # Ending longitude angle
                 sin_phi0, cos_phi0 = math.sin(phi0), math.cos(phi0)
                 sin_phi1, cos_phi1 = math.sin(phi1), math.cos(phi1)
 

@@ -53,10 +53,6 @@ class NightBase:
         self.time_delta = 0
         self.time_last = 0
 
-        # --------------- keyboard --------------- #
-
-        self.keys_pressed = []
-
         # ---------------- camera ---------------- #
 
         self.fov = 70
@@ -150,17 +146,9 @@ class NightBase:
             # ------------------------------------------------------------
 
             if obj.physics_id != None:
-                # get pos and orientation
                 pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
-                # position
-                pos = [pos[0], pos[2], pos[1]]
                 obj.set_position(pos)
-                # rotation
-                rotation = R.from_quat(orn)
-                rotation_matrix = rotation.as_matrix()
-                rotation_matrix = rotation_matrix[[0, 2, 1], :]
-                rotation_matrix[:, 2] *= -1 # flip determinant so inside out
-                obj.set_rotation(rotation_matrix)
+                obj.set_rotation(R.from_quat(orn).as_matrix())
                 
             glUseProgram(obj.material.program)
             glBindVertexArray(obj.vao)
@@ -177,7 +165,7 @@ class NightBase:
         self._scene = NightObject()
         return self._scene
 
-    def set_gravity(self, x=0.0, y=0.0, z=-9.8):
+    def set_gravity(self, x=0.0, y=-9.8, z=0.0):
         """wrpper for pybullet setGravity"""
         p.setGravity(x, y, z)
         

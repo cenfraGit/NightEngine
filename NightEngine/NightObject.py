@@ -25,7 +25,6 @@ class NightObject:
         # -------------- properties -------------- #
 
         self.visible = True
-        self.collisions = True
         
         self.mass = mass
         self.physics_id = None
@@ -66,8 +65,6 @@ class NightObject:
         if self.physics_id != None:
             return
         position = self.get_position()
-        # switch between pybullet and engine
-        position = [position[0], position[2], position[1]]
         # create id
         self.physics_id = p.createMultiBody(
             baseMass=self.mass,
@@ -107,24 +104,19 @@ class NightObject:
         else:
             return self.parent.get_world_matrix() @ self.transform
 
-    def get_position(self, pybullet=False, world=False):
+    def get_position(self, world=False):
         """returns the object's position (local or world)."""
         # ------------ world position ------------ #
         if world:
             world_transform = self.get_world_matrix()
-            pos = [world_transform.item((0, 3)),
-                   world_transform.item((1, 3)),
-                   world_transform.item((2, 3))]
+            return [world_transform.item((0, 3)),
+                    world_transform.item((1, 3)),
+                    world_transform.item((2, 3))]
         # ------ local (relative to parent) ------ #
         else:
-            pos = [self.transform.item((0, 3)),
-                   self.transform.item((1, 3)),
-                   self.transform.item((2, 3))]
-        # --------------- pybullet --------------- #
-        if pybullet:
-            return [pos[0], pos[2], pos[1]]
-        return pos
-        
+            return [self.transform.item((0, 3)),
+                    self.transform.item((1, 3)),
+                    self.transform.item((2, 3))]
 
     def get_forward_vector(self):
         """returns local z axis."""
