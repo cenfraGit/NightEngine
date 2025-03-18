@@ -3,6 +3,8 @@
 import glfw
 from OpenGL.GL import *
 
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
+from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from NightEngine.NightObject import NightObject
 from NightEngine.NightUtils import NightUtils
 from NightEngine.NightCamera import NightCamera
@@ -147,8 +149,8 @@ class NightBase:
 
             if obj.physics_id != None:
                 pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
-                obj.set_position(pos)
-                obj.set_rotation(R.from_quat(orn).as_matrix())
+                # obj.set_position(pos)
+                # obj.set_rotation(R.from_quat(orn).as_matrix())
                 
             glUseProgram(obj.material.program)
             glBindVertexArray(obj.vao)
@@ -156,6 +158,9 @@ class NightBase:
             NightUtils.set_uniform(obj.material.program, "matrix_projection", "mat4", camera.matrix_projection)
             NightUtils.set_uniform(obj.material.program, "matrix_view",       "mat4", camera.matrix_view)
             NightUtils.set_uniform(obj.material.program, "matrix_model",      "mat4", obj.get_world_matrix())
+
+            if isinstance(obj.material, NightMaterialDefault):
+                NightUtils.set_uniform(obj.material.program, "view_pos", "vec3", camera.get_position())
 
             obj.material.update_draw_settings()
 

@@ -75,7 +75,7 @@ class Example(NightBase):
         self.scene.add(self.box1)
 
     def update(self):
-        # self.box.move(self.window, self.time_delta)
+        self.box.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":
