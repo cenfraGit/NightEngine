@@ -3,7 +3,7 @@
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.NightObject import NightObject
-from NightEngine.NightMaterial import NightMaterial
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Entities.MeshBox import MeshBox
 from NightEngine.Entities.ObjectGrid import ObjectGrid
 from NightEngine.Entities.ObjectAxes import ObjectAxes
@@ -19,7 +19,7 @@ class Drone(NightObject):
         self.current_vertical_force = 0
 
         mesh = MeshBox(3, 5, 1)
-        material = NightMaterial(gl_wireframe=True)
+        material = NightMaterialDefault()
         self.camera = camera
         super().__init__(mesh, material, mass=5)
 
@@ -27,7 +27,7 @@ class Drone(NightObject):
 
         # move forward/side respect to camera orientation
 
-        force = 5
+        force = 1
 
         forward = force * self.get_forward_vector()
         side = force * self.get_right_vector()
@@ -55,11 +55,11 @@ class Example(NightBase):
         self.camera.set_position([0, 10, 30])
         # self.set_gravity(z=-40)
 
-        self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
-        self.scene.add(self.grid)
+        # self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
+        # self.scene.add(self.grid)
 
-        self.axes = ObjectAxes()
-        self.scene.add(self.axes)
+        # self.axes = ObjectAxes()
+        # self.scene.add(self.axes)
 
         self.drone = Drone(self.camera)
         self.drone.set_position([0, 10, 0])

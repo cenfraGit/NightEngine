@@ -149,8 +149,8 @@ class NightBase:
 
             if obj.physics_id != None:
                 pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
-                # obj.set_position(pos)
-                # obj.set_rotation(R.from_quat(orn).as_matrix())
+                obj.set_position(pos)
+                obj.set_rotation(R.from_quat(orn).as_matrix())
                 
             glUseProgram(obj.material.program)
             glBindVertexArray(obj.vao)

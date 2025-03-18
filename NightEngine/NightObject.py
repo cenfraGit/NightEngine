@@ -5,8 +5,9 @@ from NightEngine.NightUtils import NightUtils
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from OpenGL.GL import *
-import numpy as np
 import pybullet as p
+from scipy.spatial.transform import Rotation as R
+import numpy as np
 import glfw
 
 class NightObject:
@@ -126,6 +127,9 @@ class NightObject:
                     self.transform.item((1, 3)),
                     self.transform.item((2, 3))]
 
+    def get_rotation(self):
+        return self.transform[0:3, 0:3]
+
     def get_forward_vector(self):
         """returns local z axis."""
         return self.transform[0:3, 2]
@@ -142,6 +146,7 @@ class NightObject:
         self.transform[0, 3] = position[0]
         self.transform[1, 3] = position[1]
         self.transform[2, 3] = position[2]
+        self._update_physics_pos_orn()
 
     def set_rotation(self, rotation_matrix:np.ndarray):
         self.transform[0, 0] = rotation_matrix[0, 0]
@@ -155,10 +160,12 @@ class NightObject:
         self.transform[2, 0] = rotation_matrix[2, 0]
         self.transform[2, 1] = rotation_matrix[2, 1]
         self.transform[2, 2] = rotation_matrix[2, 2]
+        self._update_physics_pos_orn()
 
     def translate(self, x:float, y:float, z:float, local=True):
         m = NightMatrix.get_translation(x, y, z)
         self._apply_matrix(m, local)
+        self._update_physics_pos_orn()
 
     def scale(self, s:float, local=True):
         m = NightMatrix.get_scale(s)
@@ -167,17 +174,26 @@ class NightObject:
     def rotate_x(self, angle:float, local=True):
         m = NightMatrix.get_rotation_x(angle)
         self._apply_matrix(m, local)
+        self._update_physics_pos_orn()
 
     def rotate_y(self, angle:float, local=True):
         m = NightMatrix.get_rotation_y(angle)
         self._apply_matrix(m, local)
+        self._update_physics_pos_orn()
 
     def rotate_z(self, angle:float, local=True):
         m = NightMatrix.get_rotation_z(angle)
         self._apply_matrix(m, local)
+        self._update_physics_pos_orn()
 
     def _apply_matrix(self, matrix:np.ndarray, local=True):
         if local:
             self.transform = self.transform @ matrix
         else:
             self.transform = matrix @ self.transform
+
+    def _update_physics_pos_orn(self):
+        if self.physics_id != None:
+            pos = self.get_position()
+            orn = R.from_matrix(self.get_rotation()).as_quat()
+            p.resetBasePositionAndOrientation(self.physics_id, pos, orn)

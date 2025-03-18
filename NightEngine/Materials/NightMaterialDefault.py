@@ -89,10 +89,6 @@ class NightMaterialDefault:
                                "lighting",
                                "bool",
                                lighting)
-        # NightUtils.set_uniform(self.program,
-        #                        "view_pos",
-        #                        "vec3",
-        #                        [0, 0, 0])
 
         # ------------------------------------------------------------
         # default draw values
