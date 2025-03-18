@@ -2,6 +2,8 @@
 
 from NightEngine.NightMatrix import NightMatrix
 from NightEngine.NightUtils import NightUtils
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
+from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from OpenGL.GL import *
 import numpy as np
 import pybullet as p
@@ -50,6 +52,12 @@ class NightObject:
         # on material program
 
         for variable_name, attribute_dict in mesh.attributes.items():
+            # NightMaterialLight requires vertex_position
+            if isinstance(self.material, NightMaterialLight) and variable_name not in ["vertex_position"]:
+                continue
+            # NightMaterialDefault requires vertex_position, vertex_color, vertex_normal
+            if isinstance(self.material, NightMaterialDefault) and variable_name not in ["vertex_position", "vertex_color", "vertex_normal"]:
+                continue
             vbo = NightUtils.create_vbo(attribute_dict["data"])
             NightUtils.set_attribute_pointer(material.program,
                                              vbo,

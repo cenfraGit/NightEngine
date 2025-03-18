@@ -37,8 +37,23 @@ class MeshBox(NightMesh):
                   [color_z_positive]*6 +
                   [color_z_negative]*6)
 
+        normal_x_positive = [1.0, 0.0, 0.0]
+        normal_x_negative = [-1.0, 0.0, 0.0]
+        normal_y_positive = [0.0, 1.0, 0.0]
+        normal_y_negative = [0.0, -1.0, 0.0]
+        normal_z_positive = [0.0, 0.0, 1.0]
+        normal_z_negative = [0.0, 0.0, -1.0]
+
+        normals = ([normal_x_positive]*6 +
+                   [normal_x_negative]*6 +
+                   [normal_y_positive]*6 +
+                   [normal_y_negative]*6 +
+                   [normal_z_positive]*6 +
+                   [normal_z_negative]*6)
+
         self.add_attribute("vertex_position", "vec3", positions)
         self.add_attribute("vertex_color",    "vec3", colors)
+        self.add_attribute("vertex_normal",   "vec3", normals)
         self.vertex_count = len(positions)
         self.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
                                                         halfExtents=[width/2, height/2, depth/2]))

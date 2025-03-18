@@ -2,7 +2,7 @@
 
 from NightEngine.NightObject import NightObject
 from NightEngine.NightMesh import NightMesh
-from NightEngine.NightMaterial import NightMaterial
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from OpenGL.GL import *
 
 class ObjectAxes(NightObject):

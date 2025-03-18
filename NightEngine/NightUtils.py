@@ -100,6 +100,8 @@ class NightUtils:
     def set_uniform(program, variable_name, data_type, data):
 
         # ------------- find uniform ------------- #
+
+        glUseProgram(program)
         
         variable_reference = glGetUniformLocation(program, variable_name)
 

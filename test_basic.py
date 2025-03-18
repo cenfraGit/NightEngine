@@ -3,16 +3,16 @@
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.NightObject import NightObject
-from NightEngine.NightMaterial import NightMaterial
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
+from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from NightEngine.Entities.MeshBox import MeshBox
 from NightEngine.Entities.ObjectGrid import ObjectGrid
 from NightEngine.Entities.ObjectAxes import ObjectAxes
 import glfw
 
 class Box(NightObject):
-    def __init__(self):
+    def __init__(self, material):
         mesh = MeshBox(3, 5, 1)
-        material = NightMaterial(gl_wireframe=True)
         super().__init__(mesh, material)
 
     def move(self, window, time_delta: float):
@@ -61,17 +61,21 @@ class Example(NightBase):
         self.camera = NightCamera()
         self.camera.set_position([0, 3, 30])
 
-        self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
-        self.scene.add(self.grid)
+        # self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
+        # self.scene.add(self.grid)
 
-        self.axes = ObjectAxes()
-        self.scene.add(self.axes)
+        # self.axes = ObjectAxes()
+        # self.scene.add(self.axes)
 
-        self.box = Box()
+        self.box = Box(NightMaterialDefault())
         self.scene.add(self.box)
 
+        self.box1 = Box(NightMaterialLight())
+        self.box1.set_position([10, 0, 0])
+        self.scene.add(self.box1)
+
     def update(self):
-        self.box.move(self.window, self.time_delta)
+        # self.box.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":
