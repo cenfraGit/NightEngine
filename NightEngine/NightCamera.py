@@ -40,6 +40,10 @@ class NightCamera(NightObject):
         target = position + forward
         self.matrix_view = NightMatrix.get_lookat(position, target, [0, 1, 0])
 
+        self.matrix_projection = NightMatrix.get_perspective(self.fov,
+                                                             self.aspect_ratio,
+                                                             self.near, self.far)
+
         # ---------- update perspective ---------- #
 
         self.matrix_projection = NightMatrix.get_perspective(self.fov,

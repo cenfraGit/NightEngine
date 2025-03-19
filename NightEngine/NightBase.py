@@ -56,6 +56,8 @@ class NightBase:
         self.time_delta = 0
         self.time_last = 0
 
+        self.width, self.height = width, height
+
         # ---------------- scene ---------------- #
         
         self._scene = None
@@ -96,10 +98,6 @@ class NightBase:
         self.setup()
         if not self._scene:
             raise Exception("run: scene not created. run create_scene.")
-        # init physics
-        descendants = self._scene.get_descendants(include_self=False)
-        for obj in descendants:
-            obj.init_physics()
         # run loop
         while not glfw.window_should_close(self.window):
             # calculate time
@@ -131,6 +129,7 @@ class NightBase:
         # ------------------------------------------------------------
 
         camera.move(self.window, self.time_delta)
+        camera.aspect_ratio = self.width / self.height
         camera.update()
 
         # ------------------------------------------------------------
@@ -150,8 +149,8 @@ class NightBase:
 
             if obj.physics_id != None:
                 pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
-                obj.set_position(pos)
-                obj.set_rotation(R.from_quat(orn).as_matrix())
+                obj.set_position(pos, reset_base=False)
+                obj.set_rotation(R.from_quat(orn).as_matrix(), reset_base=False)
                 
             glUseProgram(obj.material.program)
             glBindVertexArray(obj.vao)
@@ -188,7 +187,8 @@ class NightBase:
         
     def _callback_framebuffer_size(self, window, width, height):
         """updates viewport and recalculates camera aspect ratio."""
-        glViewport(0, 0, width, height)
+        self.width, self.height = width, height
+        glViewport(0, 0, self.width, self.height)
 
     def _callback_cursor_pos(self, window, xpos, ypos):
         pass

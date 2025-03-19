@@ -28,4 +28,4 @@ class ObjectAxes(NightObject):
                                         gl_culling=False,
                                         lighting=False)
 
-        super().__init__(mesh, material)
+        super().__init__(mesh, material, mass=0)

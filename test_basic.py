@@ -77,7 +77,7 @@ class Example(NightBase):
         self.box1.set_position([0, 10, 0])
         self.scene.add(self.box1)
 
-        self.sphere = NightObject(MeshSphere(5, 32), NightMaterialDefault(), 5)
+        self.sphere = NightObject(MeshSphere(5, 32), NightMaterialDefault(), 10)
         self.sphere.set_position([-10, 10, 0])
         self.scene.add(self.sphere)
 

@@ -65,20 +65,13 @@ class NightObject:
                                              variable_name,
                                              attribute_dict["data_type"])
 
-    def init_physics(self):
-        # will initialize the multibody using the collision shape in
-        # mesh. if no mesh, skip.
-        if not self.mesh or self.mesh.collision_shape == None:
-            return
-        # if already initialized
-        if self.physics_id != None:
-            return
-        position = self.get_position()
-        # create id
-        self.physics_id = p.createMultiBody(
-            baseMass=self.mass,
-            baseCollisionShapeIndex=self.mesh.collision_shape,
-            basePosition=position)
+        # ------------ init multibody ------------ #
+
+        if self.mesh and self.mesh.collision_shape != None:
+            self.physics_id = p.createMultiBody(
+                baseMass=self.mass,
+                baseCollisionShapeIndex=self.mesh.collision_shape,
+                basePosition=self.get_position())
 
     def check_pressed(self, window, glfw_key):
         return glfw.get_key(window, glfw_key) == glfw.PRESS
@@ -142,13 +135,14 @@ class NightObject:
         """returns local x axis."""
         return self.transform[0:3, 0]
 
-    def set_position(self, position:list):
+    def set_position(self, position:list, reset_base=True):
         self.transform[0, 3] = position[0]
         self.transform[1, 3] = position[1]
         self.transform[2, 3] = position[2]
-        # self._update_physics_pos_orn()
+        if reset_base:
+            self._update_physics_pos_orn()
 
-    def set_rotation(self, rotation_matrix:np.ndarray):
+    def set_rotation(self, rotation_matrix:np.ndarray, reset_base=True):
         self.transform[0, 0] = rotation_matrix[0, 0]
         self.transform[0, 1] = rotation_matrix[0, 1]
         self.transform[0, 2] = rotation_matrix[0, 2]
@@ -160,7 +154,8 @@ class NightObject:
         self.transform[2, 0] = rotation_matrix[2, 0]
         self.transform[2, 1] = rotation_matrix[2, 1]
         self.transform[2, 2] = rotation_matrix[2, 2]
-        # self._update_physics_pos_orn()
+        if reset_base:
+            self._update_physics_pos_orn()
 
     def translate(self, x:float, y:float, z:float, local=True):
         m = NightMatrix.get_translation(x, y, z)
