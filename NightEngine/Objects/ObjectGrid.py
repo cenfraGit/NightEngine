@@ -1,10 +1,10 @@
 # ObjectGrid.py
 
-from NightEngine.NightObject import NightObject
-from NightEngine.NightMesh import NightMesh
+from NightEngine.Objects.NightObject import NightObject
+from NightEngine.Meshes.NightMesh import NightMesh
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
-import pybullet as p
 from OpenGL.GL import *
+import pybullet as p
 
 class ObjectGrid(NightObject):
     def __init__(self,

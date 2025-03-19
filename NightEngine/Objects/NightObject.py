@@ -4,9 +4,9 @@ from NightEngine.NightMatrix import NightMatrix
 from NightEngine.NightUtils import NightUtils
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Materials.NightMaterialLight import NightMaterialLight
+from scipy.spatial.transform import Rotation as R
 from OpenGL.GL import *
 import pybullet as p
-from scipy.spatial.transform import Rotation as R
 import numpy as np
 import glfw
 
@@ -65,14 +65,50 @@ class NightObject:
                                              variable_name,
                                              attribute_dict["data_type"])
 
-        # ------------ init multibody ------------ #
-
+        self.linkMasses = []
+        self.linkCollisionShapeIndices = []
+        self.linkVisualShapeIndices = []
+        self.linkPositions = []
+        self.linkOrientations = []
+        self.linkInertialFramePositions = []
+        self.linkInertialFrameOrientations = []
+        self.linkParentIndices = []
+        self.linkJointTypes = []
+        self.linkJointAxis = []
+        self.linkReferences = []
+        
+    def init_multibody(self):
         if self.mesh and self.mesh.collision_shape != None:
             self.physics_id = p.createMultiBody(
                 baseMass=self.mass,
                 baseCollisionShapeIndex=self.mesh.collision_shape,
-                basePosition=self.get_position())
+                basePosition=self.get_position(),
+                baseOrientation=self.get_orientation(),
+                linkMasses=self.linkMasses,
+                linkCollisionShapeIndices=self.linkCollisionShapeIndices,
+                linkVisualShapeIndices=self.linkVisualShapeIndices,
+                linkPositions=self.linkPositions,
+                linkOrientations=self.linkOrientations,
+                linkInertialFramePositions=self.linkInertialFramePositions,
+                linkInertialFrameOrientations=self.linkInertialFrameOrientations,
+                linkParentIndices=self.linkParentIndices,
+                linkJointTypes=self.linkJointTypes,
+                linkJointAxis=self.linkJointAxis,
+                useMaximalCoordinates=False)
 
+    def add_link(self, obj, joint_type, inertial_frame_position=[0, 0, 0], inertial_frame_orientation=[0, 0, 0, 1], axis=[1, 0, 0]):
+            self.linkMasses.append(obj.mass)
+            self.linkCollisionShapeIndices.append(obj.mesh.collision_shape)
+            self.linkVisualShapeIndices.append(-1)
+            self.linkPositions.append(obj.get_position())
+            self.linkOrientations.append(obj.get_orientation().tolist())
+            self.linkInertialFramePositions.append(inertial_frame_position)
+            self.linkInertialFrameOrientations.append(inertial_frame_orientation)
+            self.linkParentIndices.append(len(self.linkParentIndices))
+            self.linkJointTypes.append(joint_type)
+            self.linkJointAxis.append(axis)
+            self.linkReferences.append(obj)
+        
     def check_pressed(self, window, glfw_key):
         return glfw.get_key(window, glfw_key) == glfw.PRESS
 
@@ -122,6 +158,10 @@ class NightObject:
 
     def get_rotation(self):
         return self.transform[0:3, 0:3]
+
+    def get_orientation(self):
+        orn = R.from_matrix(self.get_rotation()).as_quat()
+        return orn
 
     def get_forward_vector(self):
         """returns local z axis."""

@@ -1,6 +1,6 @@
 # MeshBox.py
 
-from NightEngine.NightMesh import NightMesh
+from NightEngine.Meshes.NightMesh import NightMesh
 import pybullet as p
 
 

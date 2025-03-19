@@ -1,4 +1,4 @@
-# test_basic.py
+# test_drone.py
 
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
@@ -61,7 +61,7 @@ class Example(NightBase):
 
         self.scene = self.create_scene()
         self.camera = NightCamera()
-        self.camera.set_position([0, 10, 15])
+        self.camera.set_position([0, 0, 5])
         self.set_gravity()
 
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
@@ -71,23 +71,20 @@ class Example(NightBase):
         self.axes = ObjectAxes()
         self.scene.add(self.axes)
 
-        self.box = Box(NightMaterialDefault())
+        self.box = Box(NightMaterialDefault(lighting=False))
         self.box.set_position([10, 10, 0])
-        self.box.init_multibody()
         self.scene.add(self.box)
 
-        self.box1 = Box(NightMaterialLight())
+        self.box1 = Box(NightMaterialDefault(lighting=False))
         self.box1.set_position([0, 10, 0])
-        self.box1.init_multibody()
         self.scene.add(self.box1)
 
-        self.sphere = NightObject(MeshSphere(5, 32), NightMaterialDefault(), 5)
-        self.sphere.set_position([-10, 10, 0])
-        self.sphere.init_multibody()
-        self.scene.add(self.sphere)
+        self.box.add_link(self.box1, p.JOINT_REVOLUTE)
+        self.box.add_link(self.camera, p.JOINT_FIXED)
+        self.box.init_multibody()
 
     def update(self):
-        self.box.move(self.window, self.time_delta)
+        # self.box.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":

@@ -1,19 +1,21 @@
 # NightCamera.py
 
-from NightEngine.NightObject import NightObject
+from NightEngine.Objects.NightObject import NightObject
 from NightEngine.NightMatrix import NightMatrix
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
+from NightEngine.Meshes.MeshBox import MeshBox
 import numpy as np
 import math
 import glfw
 
 class NightCamera(NightObject):
     def __init__(self,
-                 fov=85,
-                 aspect_ratio=1,
+                 fov=85.0,
+                 aspect_ratio=1.0,
                  near=0.1,
-                 far=1000):
+                 far=1000.0):
         
-        super().__init__()
+        super().__init__(MeshBox(1), NightMaterialDefault(), 100)
 
         # -------------- properties -------------- #
 

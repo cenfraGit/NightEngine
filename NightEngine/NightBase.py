@@ -1,16 +1,15 @@
 # NightBase.py
 
-import glfw
-from OpenGL.GL import *
-
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Materials.NightMaterialLight import NightMaterialLight
-from NightEngine.NightObject import NightObject
+from NightEngine.Objects.NightObject import NightObject
 from NightEngine.NightUtils import NightUtils
 from NightEngine.NightCamera import NightCamera
 from scipy.spatial.transform import Rotation as R
+from OpenGL.GL import *
 import numpy as np
 import pybullet as p
+import glfw
 
 class NightBase:
     def __init__(self,
@@ -148,10 +147,18 @@ class NightBase:
             # ------------------------------------------------------------
 
             if obj.physics_id != None:
+                # update render based on object physical position and orientation
                 pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
                 obj.set_position(pos, reset_base=False)
                 obj.set_rotation(R.from_quat(orn).as_matrix(), reset_base=False)
-                
+                # update object link visual representations
+                for i in range(p.getNumJoints(obj.physics_id)):
+                    link_data = p.getLinkState(obj.physics_id, i)
+                    link_pos = link_data[0]
+                    link_orn = link_data[1]
+                    obj.linkReferences[i].set_position(link_pos, reset_base=False)
+                    obj.linkReferences[i].set_rotation(R.from_quat(link_orn).as_matrix(), reset_base=False)
+                    
             glUseProgram(obj.material.program)
             glBindVertexArray(obj.vao)
             

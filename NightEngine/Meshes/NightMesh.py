@@ -1,7 +1,5 @@
 # NightMesh.py
 
-from NightEngine.NightUtils import NightUtils
-
 class NightMesh:
     def __init__(self):
         self.attributes = {}

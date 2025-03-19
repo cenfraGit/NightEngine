@@ -54,7 +54,7 @@ class NightMatrix:
                          [0, 0, 0, 1]], dtype=np.float32)
 
     @staticmethod
-    def get_perspective(fov=60, aspect_ratio=1, near=0.1, far=1000):
+    def get_perspective(fov=60.0, aspect_ratio=1.0, near=0.1, far=1000.0):
         a = fov * pi/180.0
         d = 1.0 / tan(a/2)
         r = aspect_ratio

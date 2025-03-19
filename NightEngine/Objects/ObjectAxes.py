@@ -1,7 +1,7 @@
 # ObjectGrid.py
 
-from NightEngine.NightObject import NightObject
-from NightEngine.NightMesh import NightMesh
+from NightEngine.Objects.NightObject import NightObject
+from NightEngine.Meshes.NightMesh import NightMesh
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from OpenGL.GL import *
 
