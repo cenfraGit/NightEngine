@@ -3,7 +3,7 @@
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.NightObject import NightObject
-from NightEngine.NightMaterial import NightMaterial
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Entities.MeshSphere import MeshSphere
 import pybullet as p
 
@@ -14,11 +14,13 @@ class Example(NightBase):
         self.camera.set_position([0, 20, 40])
         self.set_gravity(0, 0, 0)
 
-        self.star = NightObject(MeshSphere(10, 32), NightMaterial(gl_wireframe=False, gl_culling=False), mass=30)
+        self.light_directional["direction"] = [1.0, 1.0, 0.0]
+
+        self.star = NightObject(MeshSphere(10, 32), NightMaterialDefault(gl_wireframe=False), mass=30)
         self.star.set_position([0, 0, 0])
         self.scene.add(self.star)
 
-        self.planet = NightObject(MeshSphere(3, 32), NightMaterial(gl_wireframe=False, gl_culling=False), mass=1)
+        self.planet = NightObject(MeshSphere(3, 32), NightMaterialDefault(gl_wireframe=False), mass=1)
         self.planet.set_position([40, 0, 0])
         self.scene.add(self.planet)
 

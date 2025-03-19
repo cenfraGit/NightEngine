@@ -146,7 +146,7 @@ class NightObject:
         self.transform[0, 3] = position[0]
         self.transform[1, 3] = position[1]
         self.transform[2, 3] = position[2]
-        self._update_physics_pos_orn()
+        # self._update_physics_pos_orn()
 
     def set_rotation(self, rotation_matrix:np.ndarray):
         self.transform[0, 0] = rotation_matrix[0, 0]
@@ -160,7 +160,7 @@ class NightObject:
         self.transform[2, 0] = rotation_matrix[2, 0]
         self.transform[2, 1] = rotation_matrix[2, 1]
         self.transform[2, 2] = rotation_matrix[2, 2]
-        self._update_physics_pos_orn()
+        # self._update_physics_pos_orn()
 
     def translate(self, x:float, y:float, z:float, local=True):
         m = NightMatrix.get_translation(x, y, z)

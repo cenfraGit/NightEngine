@@ -3,7 +3,7 @@
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.NightObject import NightObject
-from NightEngine.NightMaterial import NightMaterial
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Entities.MeshBox import MeshBox
 from NightEngine.Entities.MeshSphere import MeshSphere
 from NightEngine.Entities.ObjectGrid import ObjectGrid
@@ -13,9 +13,8 @@ import glfw
 
 class MyObject(NightObject):
     def __init__(self, camera):
-
         mesh = MeshSphere(4, 32)
-        material = NightMaterial(gl_wireframe=False)
+        material = NightMaterialDefault(gl_wireframe=False)
         self.camera = camera
         super().__init__(mesh, material, mass=5)
 
@@ -31,7 +30,7 @@ class MyObject(NightObject):
         if self.check_pressed(window, glfw.KEY_I):
             p.applyExternalForce(self.physics_id, -1, forward, self.get_position(), p.WORLD_FRAME)
         if self.check_pressed(window, glfw.KEY_K):
-            p.applyExternalForce(self.physics_id, -1, -forward, self.get_position(True), p.WORLD_FRAME)
+            p.applyExternalForce(self.physics_id, -1, -forward, self.get_position(), p.WORLD_FRAME)
         if self.check_pressed(window, glfw.KEY_J):
             p.applyExternalForce(self.physics_id, -1, side, self.get_position(), p.WORLD_FRAME)
         if self.check_pressed(window, glfw.KEY_L):
@@ -62,7 +61,7 @@ class Example(NightBase):
         vert = 5
         for i in range(-hor, hor+1):
             for j in range(2, vert):
-                cube = NightObject(MeshBox(w, w, w), NightMaterial(), mass=1)
+                cube = NightObject(MeshBox(w, w, w), NightMaterialDefault(), mass=1)
                 cube.set_position([i*w, j*w, 0])
                 self.scene.add(cube)
 

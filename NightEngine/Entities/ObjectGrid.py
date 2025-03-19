@@ -39,8 +39,9 @@ class ObjectGrid(NightObject):
         mesh.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
                                                         halfExtents=[width/2, 0, width/2]))
         
-        material = NightMaterial(gl_draw_style=GL_LINES,
-                                 gl_line_width=line_width,
-                                 gl_culling=False)
+        material = NightMaterialDefault(gl_draw_style=GL_LINES,
+                                        gl_line_width=line_width,
+                                        gl_culling=False,
+                                        lighting=False)
 
         super().__init__(mesh, material)

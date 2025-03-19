@@ -53,13 +53,13 @@ class Example(NightBase):
         self.scene = self.create_scene()
         self.camera = NightCamera()
         self.camera.set_position([0, 10, 30])
-        # self.set_gravity(z=-40)
+        # self.set_gravity(y=-9.8)
 
-        # self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
-        # self.scene.add(self.grid)
+        self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
+        self.scene.add(self.grid)
 
-        # self.axes = ObjectAxes()
-        # self.scene.add(self.axes)
+        self.axes = ObjectAxes()
+        self.scene.add(self.axes)
 
         self.drone = Drone(self.camera)
         self.drone.set_position([0, 10, 0])

@@ -3,6 +3,7 @@
 from NightEngine.NightMesh import NightMesh
 import pybullet as p
 
+
 class MeshBox(NightMesh):
     def __init__(self, width=1, height=1, depth=1):
 

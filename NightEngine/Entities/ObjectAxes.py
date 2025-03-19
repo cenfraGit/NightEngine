@@ -23,8 +23,9 @@ class ObjectAxes(NightObject):
         mesh.add_attribute("vertex_color", "vec3", colors)
         mesh.vertex_count = len(positions)
 
-        material = NightMaterial(gl_draw_style=GL_LINES,
-                                 gl_line_width=line_width,
-                                 gl_culling=False)
+        material = NightMaterialDefault(gl_draw_style=GL_LINES,
+                                        gl_line_width=line_width,
+                                        gl_culling=False,
+                                        lighting=False)
 
         super().__init__(mesh, material)

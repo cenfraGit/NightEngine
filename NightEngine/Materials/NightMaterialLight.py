@@ -13,6 +13,17 @@ class NightMaterialLight:
                  color=[1.0, 1.0, 1.0]):
 
         # ------------------------------------------------------------
+        # material attributes
+        # ------------------------------------------------------------
+        
+        self.gl_draw_style = gl_draw_style
+        self.gl_line_width = gl_line_width
+        self.gl_point_size = gl_point_size
+        self.gl_culling = gl_culling
+        self.gl_wireframe = gl_wireframe
+        self.color = color
+
+        # ------------------------------------------------------------
         # shaders
         # ------------------------------------------------------------
         
@@ -41,23 +52,6 @@ class NightMaterialLight:
         self.program = NightUtils.create_program(code_shader_vertex,
                                                  code_shader_fragment)
 
-        # -------- set light source color -------- #
-
-        NightUtils.set_uniform(self.program,
-                               "light_color",
-                               "vec3",
-                               color)
-
-        # ------------------------------------------------------------
-        # default draw values
-        # ------------------------------------------------------------
-
-        self.gl_draw_style = gl_draw_style
-        self.gl_line_width = gl_line_width
-        self.gl_point_size = gl_point_size
-        self.gl_culling = gl_culling
-        self.gl_wireframe = gl_wireframe
-
     def update_draw_settings(self):
 
         glPointSize(self.gl_point_size)
@@ -72,4 +66,6 @@ class NightMaterialLight:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+
+        NightUtils.set_uniform(self.program, "light_color", "vec3", self.color)
         

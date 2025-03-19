@@ -31,7 +31,7 @@ class NightCamera(NightObject):
         self.matrix_projection = NightMatrix.get_perspective(fov, aspect_ratio, near, far)
         self.matrix_view = NightMatrix.get_identity()
 
-    def update(self, fov=None, aspect_ratio=None, near=None, far=None):
+    def update(self):
 
         # ------------- update view ------------- #
 
@@ -42,10 +42,6 @@ class NightCamera(NightObject):
 
         # ---------- update perspective ---------- #
 
-        self.fov = fov if fov else self.fov
-        self.aspect_ratio = aspect_ratio if aspect_ratio else self.aspect_ratio
-        self.near = near if near else self.near
-        self.far = far if far else self.far
         self.matrix_projection = NightMatrix.get_perspective(self.fov,
                                                              self.aspect_ratio,
                                                              self.near,

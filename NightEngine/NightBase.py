@@ -9,12 +9,13 @@ from NightEngine.NightObject import NightObject
 from NightEngine.NightUtils import NightUtils
 from NightEngine.NightCamera import NightCamera
 from scipy.spatial.transform import Rotation as R
+import numpy as np
 import pybullet as p
 
 class NightBase:
     def __init__(self,
-                 width=1200,
-                 height=800,
+                 width=900,
+                 height=900,
                  title="NightEngine"):
 
         # ------------------------------------------------------------
@@ -55,14 +56,15 @@ class NightBase:
         self.time_delta = 0
         self.time_last = 0
 
-        # ---------------- camera ---------------- #
-
-        self.fov = 70
-        self.aspect_ratio = width / height
-        self.near = 0.1
-        self.far = 1000
-
+        # ---------------- scene ---------------- #
+        
         self._scene = None
+        self.light_directional = {
+            "direction": [0, -1, 0],
+            "ambient": [0.3, 0.3, 0.3],
+            "diffuse": [1.0, 1.0, 1.0],
+            "specular": [1.0, 1.0, 1.0]
+        }
 
         # ------------------------------------------------------------
         # opengl states
@@ -129,8 +131,7 @@ class NightBase:
         # ------------------------------------------------------------
 
         camera.move(self.window, self.time_delta)
-        camera.update(fov=self.fov, aspect_ratio=self.aspect_ratio,
-                      near=self.near, far=self.far)
+        camera.update()
 
         # ------------------------------------------------------------
         # draw objects
@@ -160,6 +161,17 @@ class NightBase:
             NightUtils.set_uniform(obj.material.program, "matrix_model",      "mat4", obj.get_world_matrix())
 
             if isinstance(obj.material, NightMaterialDefault):
+                # set directional light
+                NightUtils.set_uniform(obj.material.program, "light_directional.direction", "vec3", self.light_directional["direction"])
+                NightUtils.set_uniform(obj.material.program, "light_directional.ambient", "vec3", self.light_directional["ambient"])
+                NightUtils.set_uniform(obj.material.program, "light_directional.diffuse", "vec3", self.light_directional["diffuse"])
+                NightUtils.set_uniform(obj.material.program, "light_directional.specular", "vec3", self.light_directional["specular"])
+                # set material qualities
+                NightUtils.set_uniform(obj.material.program, "material.shininess", "float", obj.material.shininess)
+                NightUtils.set_uniform(obj.material.program, "material.ambient", "vec3", obj.material.ambient)
+                NightUtils.set_uniform(obj.material.program, "material.diffuse", "vec3", obj.material.diffuse)
+                NightUtils.set_uniform(obj.material.program, "material.specular", "vec3", obj.material.specular)
+                # camera pos for specular reflection
                 NightUtils.set_uniform(obj.material.program, "view_pos", "vec3", camera.get_position())
 
             obj.material.update_draw_settings()
@@ -177,15 +189,9 @@ class NightBase:
     def _callback_framebuffer_size(self, window, width, height):
         """updates viewport and recalculates camera aspect ratio."""
         glViewport(0, 0, width, height)
-        self.aspect_ratio = width / height
 
     def _callback_cursor_pos(self, window, xpos, ypos):
         pass
 
     def _callback_scroll(self, window, xoffset, yoffset):
-        """updates fov based on mouse scroll callback."""
-        self.fov -= yoffset;
-        if self.fov < 1.0:
-            self.fov = 1.0
-        if self.fov > 110.0:
-            self.fov = 110
+        pass
