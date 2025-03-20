@@ -3,6 +3,7 @@
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.Objects.NightObject import NightObject
+from NightEngine.Objects.NightLink import NightLink
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from NightEngine.Meshes.MeshBox import MeshBox
@@ -61,30 +62,29 @@ class Example(NightBase):
 
         self.scene = self.create_scene()
         self.camera = NightCamera()
-        self.camera.set_position([0, 0, 5])
+        self.camera.set_position([0, 0, 20])
         self.set_gravity()
 
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)
-        self.grid.init_multibody()
 
         self.axes = ObjectAxes()
         self.scene.add(self.axes)
 
-        self.box = Box(NightMaterialDefault(lighting=False))
-        self.box.set_position([10, 10, 0])
+        # self.box = Box(NightMaterialDefault(lighting=False))
+        self.box = NightObject(MeshBox(3, 3, 3), NightMaterialDefault(), 5)
+        self.box.set_position([0, 4, 0])
         self.scene.add(self.box)
 
-        self.box1 = Box(NightMaterialDefault(lighting=False))
-        self.box1.set_position([0, 10, 0])
+        self.box1 = NightLink(MeshBox(3, 3, 3), NightMaterialDefault(), 5)
+        self.box1.set_position([0, 10, 10])
         self.scene.add(self.box1)
 
-        self.box.add_link(self.box1, p.JOINT_REVOLUTE)
+        self.box.add_link(self.box1, p.JOINT_FIXED)
         self.box.add_link(self.camera, p.JOINT_FIXED)
-        self.box.init_multibody()
 
     def update(self):
-        # self.box.move(self.window, self.time_delta)
+        self.box.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":

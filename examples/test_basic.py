@@ -66,24 +66,20 @@ class Example(NightBase):
 
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)
-        self.grid.init_multibody()
 
         self.axes = ObjectAxes()
         self.scene.add(self.axes)
 
         self.box = Box(NightMaterialDefault())
         self.box.set_position([10, 10, 0])
-        self.box.init_multibody()
         self.scene.add(self.box)
 
         self.box1 = Box(NightMaterialLight())
         self.box1.set_position([0, 10, 0])
-        self.box1.init_multibody()
         self.scene.add(self.box1)
 
         self.sphere = NightObject(MeshSphere(5, 32), NightMaterialDefault(), 5)
         self.sphere.set_position([-10, 10, 0])
-        self.sphere.init_multibody()
         self.scene.add(self.sphere)
 
     def update(self):

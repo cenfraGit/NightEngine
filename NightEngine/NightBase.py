@@ -3,6 +3,7 @@
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from NightEngine.Objects.NightObject import NightObject
+from NightEngine.Objects.NightLink import NightLink
 from NightEngine.NightUtils import NightUtils
 from NightEngine.NightCamera import NightCamera
 from scipy.spatial.transform import Rotation as R
@@ -97,6 +98,12 @@ class NightBase:
         self.setup()
         if not self._scene:
             raise Exception("run: scene not created. run create_scene.")
+        # init multiobjects (not links)
+        descendants = self._scene.get_descendants(include_self=False)
+        for obj in descendants:
+            if isinstance(obj, NightLink):
+                continue
+            obj.init_multibody()
         # run loop
         while not glfw.window_should_close(self.window):
             # calculate time

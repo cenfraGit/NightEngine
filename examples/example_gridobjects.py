@@ -47,7 +47,6 @@ class Example(NightBase):
         self.set_gravity(y=-40)
 
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
-        self.grid.init_multibody()
         self.scene.add(self.grid)
 
         self.axes = ObjectAxes(length=10, line_width=6)
@@ -55,7 +54,6 @@ class Example(NightBase):
 
         self.sphere = MyObject(self.camera)
         self.sphere.set_position([0, 10, 20])
-        self.sphere.init_multibody()
         self.scene.add(self.sphere)
 
         w = 5
@@ -65,7 +63,6 @@ class Example(NightBase):
             for j in range(2, vert):
                 cube = NightObject(MeshBox(w, w, w), NightMaterialDefault(), mass=1)
                 cube.set_position([i*w, j*w, 0])
-                cube.init_multibody()
                 self.scene.add(cube)
 
     def update(self):

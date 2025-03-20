@@ -18,12 +18,10 @@ class Example(NightBase):
 
         self.star = NightObject(MeshSphere(10, 32), NightMaterialDefault(gl_wireframe=False), mass=30)
         self.star.set_position([0, 0, 0])
-        self.star.init_multibody()
         self.scene.add(self.star)
 
         self.planet = NightObject(MeshSphere(3, 32), NightMaterialDefault(gl_wireframe=False), mass=1)
         self.planet.set_position([40, 0, 0])
-        self.planet.init_multibody()
         self.scene.add(self.planet)
 
         self.initial_velocity = False
