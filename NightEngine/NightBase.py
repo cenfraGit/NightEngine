@@ -104,16 +104,24 @@ class NightBase:
             if isinstance(obj, NightLink):
                 continue
             obj.init_multibody()
+        # set time step
+        fixed_time_step = 1.0 / 240.0
+        accumulated_time = 0.0
+        p.setTimeStep(fixed_time_step)
         # run loop
         while not glfw.window_should_close(self.window):
             # calculate time
             self.time_current = glfw.get_time()
             self.time_delta = self.time_current - self.time_last
+            self.time_delta = min(self.time_delta, 1.0 / 30.0)
             self.time_last = self.time_current
             self.time += self.time_delta
+            accumulated_time += self.time_delta
             # step physics simulation
-            p.setTimeStep(self.time_delta)
-            p.stepSimulation()
+            while accumulated_time >= fixed_time_step:
+                p.stepSimulation()
+                p.stepSimulation() # ?
+                accumulated_time -= fixed_time_step
             # process input
             glfw.poll_events()
             # update scene

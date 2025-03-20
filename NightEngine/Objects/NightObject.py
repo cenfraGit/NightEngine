@@ -105,7 +105,7 @@ class NightObject:
         self.linkOrientations.append(obj.get_orientation().tolist())
         self.linkInertialFramePositions.append(inertial_frame_position)
         self.linkInertialFrameOrientations.append(inertial_frame_orientation)
-        self.linkParentIndices.append(link_index_new)
+        self.linkParentIndices.append(0)
         self.linkJointTypes.append(joint_type)
         self.linkJointAxis.append(axis)
         self.linkReferences.append(obj)
