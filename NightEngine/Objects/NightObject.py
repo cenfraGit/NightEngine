@@ -97,17 +97,19 @@ class NightObject:
                 useMaximalCoordinates=False)
 
     def add_link(self, obj, joint_type, inertial_frame_position=[0, 0, 0], inertial_frame_orientation=[0, 0, 0, 1], axis=[1, 0, 0]):
-            self.linkMasses.append(obj.mass)
-            self.linkCollisionShapeIndices.append(obj.mesh.collision_shape)
-            self.linkVisualShapeIndices.append(-1)
-            self.linkPositions.append(obj.get_position())
-            self.linkOrientations.append(obj.get_orientation().tolist())
-            self.linkInertialFramePositions.append(inertial_frame_position)
-            self.linkInertialFrameOrientations.append(inertial_frame_orientation)
-            self.linkParentIndices.append(len(self.linkParentIndices))
-            self.linkJointTypes.append(joint_type)
-            self.linkJointAxis.append(axis)
-            self.linkReferences.append(obj)
+        link_index_new = len(self.linkParentIndices)
+        self.linkMasses.append(obj.mass)
+        self.linkCollisionShapeIndices.append(obj.mesh.collision_shape)
+        self.linkVisualShapeIndices.append(-1)
+        self.linkPositions.append(obj.get_position())
+        self.linkOrientations.append(obj.get_orientation().tolist())
+        self.linkInertialFramePositions.append(inertial_frame_position)
+        self.linkInertialFrameOrientations.append(inertial_frame_orientation)
+        self.linkParentIndices.append(link_index_new)
+        self.linkJointTypes.append(joint_type)
+        self.linkJointAxis.append(axis)
+        self.linkReferences.append(obj)
+        return link_index_new
         
     def check_pressed(self, window, glfw_key):
         return glfw.get_key(window, glfw_key) == glfw.PRESS

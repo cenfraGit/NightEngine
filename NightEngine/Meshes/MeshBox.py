@@ -5,7 +5,7 @@ import pybullet as p
 
 
 class MeshBox(NightMesh):
-    def __init__(self, width=1, height=1, depth=1):
+    def __init__(self, width=1.0, height=1.0, depth=1.0):
 
         super().__init__()
 

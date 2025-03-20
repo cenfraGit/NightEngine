@@ -9,7 +9,7 @@ import pybullet as p
 import math
 
 class MeshSphere(NightMesh):
-    def __init__(self, radius=1, segments=16):
+    def __init__(self, radius=1.0, segments=16):
         super().__init__()
 
         positions = []  # List to hold vertex positions

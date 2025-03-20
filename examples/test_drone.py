@@ -13,49 +13,28 @@ from NightEngine.Objects.ObjectAxes import ObjectAxes
 import pybullet as p
 import glfw
 
-class Box(NightObject):
-    def __init__(self, material):
-        mesh = MeshBox(3, 5, 1)
+class Quadcopter(NightObject):
+    def __init__(self, scene):
+        
+        # create drone base
+        mesh = MeshBox(3, 1, 5)
+        material = NightMaterialDefault()
         super().__init__(mesh, material, 5)
+
+        # create rotors
+        self.rot1 = NightLink(MeshSphere(0.6), material)
+        self.rot1.set_position([3, 2, 1])
+        self.rot1_id = self.add_link(self.rot1, p.JOINT_FIXED)
+        scene.add(self.rot1)
 
     def move(self, window, time_delta: float):
 
-        amount = 10 * time_delta
-
-        # ----------- lateral movement ----------- #
-
-        if self.check_pressed(window, glfw.KEY_L):
-            self.translate(amount, 0, 0, local=False)
-        if self.check_pressed(window, glfw.KEY_J):
-            self.translate(-amount, 0, 0, local=False)
         if self.check_pressed(window, glfw.KEY_I):
-            self.translate(0, 0, -amount, local=False)
-        if self.check_pressed(window, glfw.KEY_K):
-            self.translate(0, 0, amount, local=False)
-        if self.check_pressed(window, glfw.KEY_Y):
-            self.translate(0, amount, 0, local=False)
-        if self.check_pressed(window, glfw.KEY_H):
-            self.translate(0, -amount, 0, local=False)
-
-        # -------------- rotations -------------- #
-
-        # x axis
-        if self.check_pressed(window, glfw.KEY_O):
-            self.rotate_x(amount)
-        if self.check_pressed(window, glfw.KEY_U):
-            self.rotate_x(-amount)
-
-        # y axis
-        if self.check_pressed(window, glfw.KEY_T):
-            self.rotate_y(amount)
-        if self.check_pressed(window, glfw.KEY_G):
-            self.rotate_y(-amount)
-
-        # z axis
-        if self.check_pressed(window, glfw.KEY_R):
-            self.rotate_z(amount)
-        if self.check_pressed(window, glfw.KEY_F):
-            self.rotate_z(-amount)
+            p.applyExternalForce(self.physics_id,
+                                 linkIndex=self.rot1_id,
+                                 forceObj=[0, 50, 0],
+                                 posObj=self.rot1.get_position(),
+                                 flags=p.WORLD_FRAME)
 
 class Example(NightBase):
     def setup(self):
@@ -68,23 +47,12 @@ class Example(NightBase):
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)
 
-        self.axes = ObjectAxes()
-        self.scene.add(self.axes)
-
-        # self.box = Box(NightMaterialDefault(lighting=False))
-        self.box = NightObject(MeshBox(3, 3, 3), NightMaterialDefault(), 5)
-        self.box.set_position([0, 4, 0])
-        self.scene.add(self.box)
-
-        self.box1 = NightLink(MeshBox(3, 3, 3), NightMaterialDefault(), 5)
-        self.box1.set_position([0, 10, 10])
-        self.scene.add(self.box1)
-
-        self.box.add_link(self.box1, p.JOINT_FIXED)
-        self.box.add_link(self.camera, p.JOINT_FIXED)
+        self.drone = Quadcopter(self.scene)
+        self.drone.set_position([0, 3, 0])
+        self.scene.add(self.drone)
 
     def update(self):
-        self.box.move(self.window, self.time_delta)
+        self.drone.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":
