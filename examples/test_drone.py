@@ -11,6 +11,7 @@ from NightEngine.Meshes.MeshSphere import MeshSphere
 from NightEngine.Objects.ObjectGrid import ObjectGrid
 from NightEngine.Objects.ObjectAxes import ObjectAxes
 import pybullet as p
+import numpy as np
 import glfw
 
 class ControllerPID:
@@ -33,9 +34,11 @@ class ControllerPID:
 class Quadcopter(NightObject):
     def __init__(self, scene):
 
-        self.altitude_target = 5
         self.base_force = 5
 
+        self.target_altitude = 5
+        self.target_pitch = 0
+        
         self.rot1_force = 0
         self.rot2_force = 0
         self.rot3_force = 0
@@ -43,6 +46,7 @@ class Quadcopter(NightObject):
 
         # controllers
         self.pid_altitude = ControllerPID(kp=1.0, ki=1.0, kd=1.0)
+        self.pid_pitch = ControllerPID(kp=0.3, ki=0.5, kd=1.0)
         
         # create drone base
         mesh = MeshBox(3, 1, 5)
@@ -72,29 +76,41 @@ class Quadcopter(NightObject):
         scene.add(self.rot4)
 
     def _update_rotor_forces(self):
+
+        # convert forces from local to world
+        rotation_matrix = np.array(p.getMatrixFromQuaternion(self.get_orientation())).reshape(3, 3)
+        force1 = rotation_matrix @ np.array([0.0, self.rot1_force, 0.0])
+        force2 = rotation_matrix @ np.array([0.0, self.rot2_force, 0.0])
+        force3 = rotation_matrix @ np.array([0.0, self.rot3_force, 0.0])
+        force4 = rotation_matrix @ np.array([0.0, self.rot4_force, 0.0])
+
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot1_id,
-                             forceObj=[0, self.rot1_force, 0],
+                             forceObj=force1,
                              posObj=self.rot1.get_position(),
                              flags=p.WORLD_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot2_id,
-                             forceObj=[0, self.rot2_force, 0],
+                             forceObj=force2,
                              posObj=self.rot2.get_position(),
                              flags=p.WORLD_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot3_id,
-                             forceObj=[0, self.rot3_force, 0],
+                             forceObj=force3,
                              posObj=self.rot3.get_position(),
                              flags=p.WORLD_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot4_id,
-                             forceObj=[0, self.rot4_force, 0],
+                             forceObj=force4,
                              posObj=self.rot4.get_position(),
                              flags=p.WORLD_FRAME)
 
     def _get_altitude(self):
         return self.get_position()[1]
+
+    def _get_pitch(self):
+        roll, pitch, yaw = p.getEulerFromQuaternion(self.get_orientation())
+        return -roll
         
     def move(self, window, time_delta: float):
 
@@ -104,29 +120,35 @@ class Quadcopter(NightObject):
 
         # altitude
         if self.check_pressed(window, glfw.KEY_O):
-            self.altitude_target += 0.2
+            self.target_altitude += 0.2
         if self.check_pressed(window, glfw.KEY_U):
-            self.altitude_target -= 0.2
+            self.target_altitude -= 0.2
         # movement
         if self.check_pressed(window, glfw.KEY_I):
-            self.altitude_target -= 0.2
+            self.target_pitch = 0.5
+        elif self.check_pressed(window, glfw.KEY_K):
+            self.target_pitch = -0.5
+        else:
+            self.target_pitch = 0.0
 
         # ------------------------------------------------------------
         # control
         # ------------------------------------------------------------
 
-        altitude_correction = self.pid_altitude.compute(self.altitude_target, self._get_altitude(), 1/240)
-        new_speed = self.base_force + altitude_correction
-        self.rot1_force = new_speed
-        self.rot2_force = new_speed
-        self.rot3_force = new_speed
-        self.rot4_force = new_speed
-        print(round(self.altitude_target, 2),
-              round(self._get_altitude(), 2),
-              round(self.rot1_force, 2),
-              round(self.rot2_force, 2),
-              round(self.rot3_force, 2),
-              round(self.rot4_force, 2))
+        correction_altitude = self.pid_altitude.compute(self.target_altitude, self._get_altitude(), 1./240.)
+        correction_pitch = self.pid_pitch.compute(self.target_pitch, self._get_pitch(), 1./240.)
+
+        self.rot1_force = self.base_force + correction_altitude
+        self.rot2_force = self.base_force + correction_altitude
+        self.rot3_force = self.base_force + correction_altitude
+        self.rot4_force = self.base_force + correction_altitude
+
+        self.rot1_force += correction_pitch
+        self.rot2_force -= correction_pitch
+        self.rot3_force -= correction_pitch
+        self.rot4_force += correction_pitch
+
+        print(self.target_pitch, round(self._get_pitch(), 2), round(correction_pitch, 2))
 
         # --------- update rotor forces --------- #
 
