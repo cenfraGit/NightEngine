@@ -13,8 +13,37 @@ from NightEngine.Objects.ObjectAxes import ObjectAxes
 import pybullet as p
 import glfw
 
+class ControllerPID:
+    def __init__(self, kp, ki, kd):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.error_previous = 0
+        self.integral = 0
+
+    def compute(self, target, process_variable, dt):
+        error = target - process_variable
+        self.integral += error * dt
+        P = self.kp * error
+        I = self.ki * self.integral
+        D = self.kd * (error - self.error_previous) / dt
+        self.error_previous = error
+        return P + I + D
+
 class Quadcopter(NightObject):
     def __init__(self, scene):
+
+        self.altitude_target = 0
+        self.altitude_current = 0
+        self.base_speed = 200
+
+        self.rot1_force = 0
+        self.rot2_force = 0
+        self.rot3_force = 0
+        self.rot4_force = 0
+
+        # controllers
+        self.pid_altitude = ControllerPID(kp=2.0, ki=1.0, kd=1.0)
         
         # create drone base
         mesh = MeshBox(3, 1, 5)
@@ -46,39 +75,43 @@ class Quadcopter(NightObject):
 
     def move(self, window, time_delta: float):
 
-        if self.check_pressed(window, glfw.KEY_I):
-            p.applyExternalForce(self.physics_id,
-                                 linkIndex=self.rot1_id,
-                                 forceObj=[0, 4000, 0],
-                                 posObj=self.rot1.get_position(),
-                                 flags=p.WORLD_FRAME)
-            p.applyExternalForce(self.physics_id,
-                                 linkIndex=self.rot3_id,
-                                 forceObj=[0, 4000, 0],
-                                 posObj=self.rot3.get_position(),
-                                 flags=p.WORLD_FRAME)
+        p.applyExternalForce(self.physics_id,
+                             linkIndex=self.rot1_id,
+                             forceObj=[0, self.rot1_force, 0],
+                             posObj=self.rot1.get_position(),
+                             flags=p.WORLD_FRAME)
+        p.applyExternalForce(self.physics_id,
+                             linkIndex=self.rot2_id,
+                             forceObj=[0, self.rot2_force, 0],
+                             posObj=self.rot2.get_position(),
+                             flags=p.WORLD_FRAME)
+        p.applyExternalForce(self.physics_id,
+                             linkIndex=self.rot3_id,
+                             forceObj=[0, self.rot3_force, 0],
+                             posObj=self.rot3.get_position(),
+                             flags=p.WORLD_FRAME)
+        p.applyExternalForce(self.physics_id,
+                             linkIndex=self.rot4_id,
+                             forceObj=[0, self.rot4_force, 0],
+                             posObj=self.rot4.get_position(),
+                             flags=p.WORLD_FRAME)
 
-        if self.check_pressed(window, glfw.KEY_L):
-            p.applyExternalForce(self.physics_id,
-                                 linkIndex=self.rot1_id,
-                                 forceObj=[0, 50, 0],
-                                 posObj=self.rot1.get_position(),
-                                 flags=p.WORLD_FRAME)
-            p.applyExternalForce(self.physics_id,
-                                 linkIndex=self.rot2_id,
-                                 forceObj=[0, 45, 0],
-                                 posObj=self.rot2.get_position(),
-                                 flags=p.WORLD_FRAME)
-            p.applyExternalForce(self.physics_id,
-                                 linkIndex=self.rot3_id,
-                                 forceObj=[0, 45, 0],
-                                 posObj=self.rot3.get_position(),
-                                 flags=p.WORLD_FRAME)
-            p.applyExternalForce(self.physics_id,
-                                 linkIndex=self.rot4_id,
-                                 forceObj=[0, 50, 0],
-                                 posObj=self.rot4.get_position(),
-                                 flags=p.WORLD_FRAME)
+        if self.check_pressed(window, glfw.KEY_I):
+            self.altitude_target += 0.1
+
+        self.altitude_current = self.get_position()[1]
+        altitude_correction = self.pid_altitude.compute(self.altitude_target, self.altitude_current, 1/240)
+        new_speed = self.base_speed + altitude_correction
+        self.rot1_force = new_speed
+        self.rot2_force = new_speed
+        self.rot3_force = new_speed
+        self.rot4_force = new_speed
+        print(round(self.altitude_target, 2),
+              round(self.altitude_current, 2),
+              round(self.rot1_force, 2),
+              round(self.rot2_force, 2),
+              round(self.rot3_force, 2),
+              round(self.rot4_force, 2))
 
 class Example(NightBase):
     def setup(self):
@@ -92,7 +125,7 @@ class Example(NightBase):
         self.scene.add(self.grid)
 
         self.drone = Quadcopter(self.scene)
-        self.drone.set_position([0, 10, 0])
+        self.drone.set_position([0, 2, 0])
         self.scene.add(self.drone)
 
     def update(self):
