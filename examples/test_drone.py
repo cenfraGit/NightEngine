@@ -33,9 +33,8 @@ class ControllerPID:
 class Quadcopter(NightObject):
     def __init__(self, scene):
 
-        self.altitude_target = 0
-        self.altitude_current = 0
-        self.base_speed = 200
+        self.altitude_target = 5
+        self.base_force = 5
 
         self.rot1_force = 0
         self.rot2_force = 0
@@ -43,23 +42,23 @@ class Quadcopter(NightObject):
         self.rot4_force = 0
 
         # controllers
-        self.pid_altitude = ControllerPID(kp=2.0, ki=1.0, kd=1.0)
+        self.pid_altitude = ControllerPID(kp=1.0, ki=1.0, kd=1.0)
         
         # create drone base
         mesh = MeshBox(3, 1, 5)
         material = NightMaterialDefault()
-        super().__init__(mesh, material, 5)
+        super().__init__(mesh, material, mass=0.06)
 
         # create rotors
         mesh_rotors = MeshSphere(0.6)
         
-        self.rot1 = NightLink(mesh_rotors, material, 1)
+        self.rot1 = NightLink(mesh_rotors, material, mass=0.05)
         self.rot1.set_position([-1.7, 1, 2.7])
-        self.rot2 = NightLink(mesh_rotors, material, 1)
+        self.rot2 = NightLink(mesh_rotors, material, mass=0.05)
         self.rot2.set_position([-1.7, 1, -2.7])
-        self.rot3 = NightLink(mesh_rotors, material, 1)
+        self.rot3 = NightLink(mesh_rotors, material, mass=0.05)
         self.rot3.set_position([1.7, 1, -2.7])
-        self.rot4 = NightLink(mesh_rotors, material, 1)
+        self.rot4 = NightLink(mesh_rotors, material, mass=0.05)
         self.rot4.set_position([1.7, 1, 2.7])
         
         self.rot1_id = self.add_link(self.rot1, p.JOINT_FIXED)
@@ -72,9 +71,7 @@ class Quadcopter(NightObject):
         scene.add(self.rot3)
         scene.add(self.rot4)
 
-
-    def move(self, window, time_delta: float):
-
+    def _update_rotor_forces(self):
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot1_id,
                              forceObj=[0, self.rot1_force, 0],
@@ -96,22 +93,44 @@ class Quadcopter(NightObject):
                              posObj=self.rot4.get_position(),
                              flags=p.WORLD_FRAME)
 
-        if self.check_pressed(window, glfw.KEY_I):
-            self.altitude_target += 0.1
+    def _get_altitude(self):
+        return self.get_position()[1]
+        
+    def move(self, window, time_delta: float):
 
-        self.altitude_current = self.get_position()[1]
-        altitude_correction = self.pid_altitude.compute(self.altitude_target, self.altitude_current, 1/240)
-        new_speed = self.base_speed + altitude_correction
+        # ------------------------------------------------------------
+        # check key inputs
+        # ------------------------------------------------------------
+
+        # altitude
+        if self.check_pressed(window, glfw.KEY_O):
+            self.altitude_target += 0.2
+        if self.check_pressed(window, glfw.KEY_U):
+            self.altitude_target -= 0.2
+        # movement
+        if self.check_pressed(window, glfw.KEY_I):
+            self.altitude_target -= 0.2
+
+        # ------------------------------------------------------------
+        # control
+        # ------------------------------------------------------------
+
+        altitude_correction = self.pid_altitude.compute(self.altitude_target, self._get_altitude(), 1/240)
+        new_speed = self.base_force + altitude_correction
         self.rot1_force = new_speed
         self.rot2_force = new_speed
         self.rot3_force = new_speed
         self.rot4_force = new_speed
         print(round(self.altitude_target, 2),
-              round(self.altitude_current, 2),
+              round(self._get_altitude(), 2),
               round(self.rot1_force, 2),
               round(self.rot2_force, 2),
               round(self.rot3_force, 2),
               round(self.rot4_force, 2))
+
+        # --------- update rotor forces --------- #
+
+        self._update_rotor_forces()
 
 class Example(NightBase):
     def setup(self):
@@ -125,7 +144,7 @@ class Example(NightBase):
         self.scene.add(self.grid)
 
         self.drone = Quadcopter(self.scene)
-        self.drone.set_position([0, 2, 0])
+        self.drone.set_position([0, 5, 0])
         self.scene.add(self.drone)
 
     def update(self):

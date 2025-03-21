@@ -11,7 +11,7 @@ import numpy as np
 import glfw
 
 class NightObject:
-    def __init__(self, mesh=None, material=None, mass=0):
+    def __init__(self, mesh=None, material=None, mass=0.0):
 
         """initializes the object by locating the mesh attributes in
         the material program."""
