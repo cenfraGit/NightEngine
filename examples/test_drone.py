@@ -53,12 +53,15 @@ class Quadcopter(NightObject):
         self.target_altitude = 30
         self.target_pitch = 0
         self.target_roll = 0
-        self.target_velocity = 0
+        self.target_yaw = 0
+        self.target_velocity_forward = 0
+        self.target_velocity_right = 0
         
         self.rot1_force = 0
         self.rot2_force = 0
         self.rot3_force = 0
         self.rot4_force = 0
+        self.rotational_force = 0
 
         # ------------------------------------------------------------
         # controllers
@@ -85,9 +88,19 @@ class Quadcopter(NightObject):
         kp, ki, kd = 0.6 * ku, tu / 2, tu / 8
         self.pid_roll = ControllerPID(kp=kp, ki=ki, kd=kd)
 
-        # --------------- velocity --------------- #
+        # ----------------- yaw ----------------- #
 
-        # self.pid_velocity = ControllerPID(kp=0.3, ki=0.00, kd=0.00)
+        self.pid_yaw = ControllerPID(kp=60, ki=30, kd=0)
+
+        # ------------- vel forward ------------- #
+        
+        self.pid_velocity_forward = ControllerPID(kp=0.08, ki=0.0, kd=0.0)
+
+        # -------------- vel right -------------- #
+
+        self.pid_velocity_right = ControllerPID(kp=0.08, ki=0.0, kd=0.0)
+
+        # -------------- vel right -------------- #
         
         # create drone base
         mesh = MeshBox(3, 1, 5)
@@ -148,6 +161,11 @@ class Quadcopter(NightObject):
                              forceObj=force4,
                              posObj=self.rot4_pos_local,
                              flags=p.LINK_FRAME)
+        
+        p.applyExternalTorque(self.physics_id,
+                              linkIndex=-1,
+                              torqueObj=[0.0, self.rotational_force, 0.0],
+                              flags=p.WORLD_FRAME)
 
     def _get_altitude(self):
         return self.get_position()[1]
@@ -159,6 +177,14 @@ class Quadcopter(NightObject):
     def _get_roll(self):
         yaw, pitch, roll = self.get_yaw_pitch_roll()
         return pitch # ?
+
+    def _get_yaw(self):
+        yaw, pitch, roll = self.get_yaw_pitch_roll()
+        return -yaw # ?
+
+    def _get_yaw_rate(self):
+        _, angular_velocity = p.getBaseVelocity(self.physics_id)
+        return angular_velocity[1] # ?
         
     def move(self, window, time_delta: float, time_total):
 
@@ -171,37 +197,54 @@ class Quadcopter(NightObject):
             self.target_altitude += 0.2
         if self.check_pressed(window, glfw.KEY_H):
             self.target_altitude -= 0.2
-        # pitch
+        # forward movement
         if self.check_pressed(window, glfw.KEY_I):
-            self.target_pitch = 0.2
-            # self.target_velocity = 0.1
+            self.target_velocity_forward = 4
         elif self.check_pressed(window, glfw.KEY_K):
-            # self.target_velocity = -0.1
-            self.target_pitch = -0.2
+            self.target_velocity_forward = -4
         else:
-            self.target_pitch = 0.0
-            # self.target_velocity = 0
-
+            self.target_velocity_forward = 0
+        # lateral movement
         if self.check_pressed(window, glfw.KEY_L):
-            self.target_roll = 0.2
+            self.target_velocity_right = 4
         elif self.check_pressed(window, glfw.KEY_J):
-            self.target_roll = -0.2
+            self.target_velocity_right = -4
         else:
-            self.target_roll = 0.0
+            self.target_velocity_right = 0
+        # yaw
+        if self.check_pressed(window, glfw.KEY_O):
+            self.target_yaw_rate = -0.8
+        elif self.check_pressed(window, glfw.KEY_U):
+            self.target_yaw_rate = 0.8
+        else:
+            self.target_yaw_rate = 0.0
 
         # ------------------------------------------------------------
         # control
         # ------------------------------------------------------------
 
-        # linear_velocity, _ = p.getBaseVelocity(self.physics_id)
-        # horizontal_velocity = linear_velocity[2]
-        # self.target_velocity = 0.01
-        # velocity_correction = self.pid_velocity.compute(self.target_velocity, horizontal_velocity, 1/240)
-        # print(velocity_correction)
+        # first apply corrections to pitch and roll values
+
+        linear_velocity, _ = p.getBaseVelocity(self.physics_id)
+        # linear velocity is global, need to transform to local
+        _, orientation_quaternion = p.getBasePositionAndOrientation(self.physics_id)
+        rotation_matrix = np.array(p.getMatrixFromQuaternion(orientation_quaternion)).reshape(3, 3)
+        local_velocity = np.dot(rotation_matrix.T, linear_velocity)
+        velocity_forward = -local_velocity[2]
+        velocity_right = -local_velocity[0]
+        
+        velocity_forward_correction = self.pid_velocity_forward.compute(-self.target_velocity_forward, velocity_forward, 1/240)
+        velocity_right_correction = self.pid_velocity_right.compute(self.target_velocity_right, velocity_right, 1/240)
+
+        self.target_pitch = velocity_forward_correction
+        self.target_roll = -velocity_right_correction
+
+        # then, based on current values, apply corrections to motors
 
         correction_altitude = self.pid_altitude.compute(self.target_altitude, self._get_altitude(), 1/240)
         correction_pitch = self.pid_pitch.compute(self.target_pitch, self._get_pitch(), 1/240)
         correction_roll = self.pid_roll.compute(self.target_roll, self._get_roll(), 1/240)
+        correction_yaw = self.pid_yaw.compute(self.target_yaw_rate, self._get_yaw_rate(), 1/240)
 
         self.rot1_force = self.base_force + correction_altitude
         self.rot2_force = self.base_force + correction_altitude
@@ -218,10 +261,13 @@ class Quadcopter(NightObject):
         self.rot3_force -= correction_roll
         self.rot4_force -= correction_roll
 
+        self.rotational_force = correction_yaw 
+
         data_queue.put([time_total,
                         self.target_altitude, self._get_altitude(),
                         self.target_pitch, self._get_pitch(),
-                        self.target_roll, self._get_roll()])
+                        self.target_roll, self._get_roll(),
+                        self.target_yaw_rate, self._get_yaw_rate()])
 
         # --------- update rotor forces --------- #
 
@@ -232,7 +278,7 @@ class Example(NightBase):
 
         self.scene = self.create_scene()
         self.camera = NightCamera()
-        self.camera.set_position([0, 0, 20])
+        self.camera.set_position([0, 20, 20])
         self.set_gravity(y=-10)
 
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
@@ -255,7 +301,7 @@ if __name__ == "__main__":
         app = pg.mkQApp("dataplot")
 
         win = pg.GraphicsLayoutWidget(show=True, title="drone data")
-        win.resize(900, 400)
+        win.resize(900, 700)
         win.setWindowTitle("drone data")
         pg.setConfigOptions(antialias=True)
 
@@ -270,6 +316,10 @@ if __name__ == "__main__":
         plot_roll = win.addPlot(title="Roll")
         curve_roll_target = plot_roll.plot(pen='r')
         curve_roll_current = plot_roll.plot(pen='y')
+        win.nextRow()
+        plot_yaw = win.addPlot(title="Yaw Rate")
+        curve_yaw_target = plot_yaw.plot(pen='r')
+        curve_yaw_current = plot_yaw.plot(pen='y')
 
         x_data = []
         y_altitude_target = []
@@ -278,6 +328,8 @@ if __name__ == "__main__":
         y_pitch_current = []
         y_roll_target = []
         y_roll_current = []
+        y_yaw_target = []
+        y_yaw_current = []
 
         def update():
             while not queue.empty():
@@ -289,15 +341,19 @@ if __name__ == "__main__":
                 y_pitch_current.append(data[4])
                 y_roll_target.append(data[5])
                 y_roll_current.append(data[6])
+                y_yaw_target.append(data[7])
+                y_yaw_current.append(data[8])
 
-                if len(x_data) > 3000:
+                if len(x_data) > 500:
                     x_data.pop(0)
                     y_altitude_target.pop(0)
                     y_altitude_current.pop(0)
                     y_pitch_target.pop(0)
                     y_pitch_current.pop(0)
-                    y_roll_target.pop(0)
+                    y_roll_target.pop(0)                    
                     y_roll_current.pop(0)
+                    y_yaw_target.pop(0)
+                    y_yaw_current.pop(0)
 
                 curve_altitude_target.setData(x_data, y_altitude_target)
                 curve_altitude_current.setData(x_data, y_altitude_current)
@@ -305,6 +361,8 @@ if __name__ == "__main__":
                 curve_pitch_current.setData(x_data, y_pitch_current)
                 curve_roll_target.setData(x_data, y_roll_target)
                 curve_roll_current.setData(x_data, y_roll_current)
+                curve_yaw_target.setData(x_data, y_yaw_target)
+                curve_yaw_current.setData(x_data, y_yaw_current)
 
         timer = QtCore.QTimer()
         timer.timeout.connect(update)
