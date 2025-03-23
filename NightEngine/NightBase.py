@@ -121,6 +121,9 @@ class NightBase:
             while accumulated_time >= fixed_time_step:
                 p.stepSimulation()
                 p.stepSimulation() # ?
+                p.stepSimulation() # ?
+                p.stepSimulation() # ?
+                p.stepSimulation() # ?
                 accumulated_time -= fixed_time_step
             # process input
             glfw.poll_events()

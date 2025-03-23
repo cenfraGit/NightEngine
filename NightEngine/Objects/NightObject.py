@@ -139,6 +139,8 @@ class NightObject:
         return descendants
 
     def get_world_matrix(self):
+        """what if the object was not added to hierarchy but instead
+        linked with multibody?"""
         if self.parent == None:
             return self.transform
         else:
@@ -162,8 +164,16 @@ class NightObject:
         return self.transform[0:3, 0:3]
 
     def get_orientation(self):
+        """returns quaternion"""
         orn = R.from_matrix(self.get_rotation()).as_quat()
         return orn
+
+    def get_yaw_pitch_roll(self):
+        rotation_matrix = self.get_rotation()
+        yaw = np.arctan2(rotation_matrix[2, 0], rotation_matrix[0, 0])
+        pitch = -np.arcsin(np.clip(rotation_matrix[1, 0], -1.0, 1.0))
+        roll = np.arctan2(rotation_matrix[1, 2], rotation_matrix[1, 1])
+        return yaw, pitch, roll
 
     def get_forward_vector(self):
         """returns local z axis."""
