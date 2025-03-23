@@ -13,6 +13,14 @@ from NightEngine.Objects.ObjectAxes import ObjectAxes
 import pybullet as p
 import numpy as np
 import glfw
+import sys
+import signal
+
+from multiprocessing import Process, Queue
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore
+
+data_queue = Queue()
 
 class ControllerPID:
     def __init__(self, kp, ki, kd):
@@ -29,24 +37,57 @@ class ControllerPID:
         I = self.ki * self.integral
         D = self.kd * (error - self.error_previous) / dt
         self.error_previous = error
-        return P + I + D
+        result = P + I + D
+        limit = 10
+        if result > limit:
+            return limit
+        elif result < -limit:
+            return -limit
+        return result
 
 class Quadcopter(NightObject):
     def __init__(self, scene):
 
         self.base_force = 5
 
-        self.target_altitude = 5
+        self.target_altitude = 30
         self.target_pitch = 0
+        self.target_roll = 0
+        self.target_velocity = 0
         
         self.rot1_force = 0
         self.rot2_force = 0
         self.rot3_force = 0
         self.rot4_force = 0
 
+        # ------------------------------------------------------------
         # controllers
-        self.pid_altitude = ControllerPID(kp=1.0, ki=1.0, kd=1.0)
-        self.pid_pitch = ControllerPID(kp=0.3, ki=0.5, kd=1.0)
+        # ------------------------------------------------------------
+
+        # --------------- altitude --------------- #
+        
+        ku = 3
+        tu = 1.071
+        kp, ki, kd = 0.6 * ku, tu / 2, tu / 8
+        self.pid_altitude = ControllerPID(kp=kp, ki=ki, kd=kd)
+
+        # ---------------- pitch ---------------- #
+
+        ku = 1.07
+        tu = 1.45
+        kp, ki, kd = 0.6 * ku, tu / 2, tu / 8
+        self.pid_pitch = ControllerPID(kp=kp, ki=ki, kd=kd)
+
+        # ----------------- roll ----------------- #
+
+        ku = 1.07
+        tu = 1.25
+        kp, ki, kd = 0.6 * ku, tu / 2, tu / 8
+        self.pid_roll = ControllerPID(kp=kp, ki=ki, kd=kd)
+
+        # --------------- velocity --------------- #
+
+        # self.pid_velocity = ControllerPID(kp=0.3, ki=0.00, kd=0.00)
         
         # create drone base
         mesh = MeshBox(3, 1, 5)
@@ -55,15 +96,20 @@ class Quadcopter(NightObject):
 
         # create rotors
         mesh_rotors = MeshSphere(0.6)
+
+        self.rot1_pos_local = [-1.7, 1, 2.7]
+        self.rot2_pos_local = [-1.7, 1, -2.7]
+        self.rot3_pos_local = [1.7, 1, -2.7]
+        self.rot4_pos_local = [1.7, 1, 2.7]
         
         self.rot1 = NightLink(mesh_rotors, material, mass=0.05)
-        self.rot1.set_position([-1.7, 1, 2.7])
+        self.rot1.set_position(self.rot1_pos_local)
         self.rot2 = NightLink(mesh_rotors, material, mass=0.05)
-        self.rot2.set_position([-1.7, 1, -2.7])
+        self.rot2.set_position(self.rot2_pos_local)
         self.rot3 = NightLink(mesh_rotors, material, mass=0.05)
-        self.rot3.set_position([1.7, 1, -2.7])
+        self.rot3.set_position(self.rot3_pos_local)
         self.rot4 = NightLink(mesh_rotors, material, mass=0.05)
-        self.rot4.set_position([1.7, 1, 2.7])
+        self.rot4.set_position(self.rot4_pos_local)
         
         self.rot1_id = self.add_link(self.rot1, p.JOINT_FIXED)
         self.rot2_id = self.add_link(self.rot2, p.JOINT_FIXED)
@@ -77,66 +123,85 @@ class Quadcopter(NightObject):
 
     def _update_rotor_forces(self):
 
-        # convert forces from local to world
-        rotation_matrix = np.array(p.getMatrixFromQuaternion(self.get_orientation())).reshape(3, 3)
-        force1 = rotation_matrix @ np.array([0.0, self.rot1_force, 0.0])
-        force2 = rotation_matrix @ np.array([0.0, self.rot2_force, 0.0])
-        force3 = rotation_matrix @ np.array([0.0, self.rot3_force, 0.0])
-        force4 = rotation_matrix @ np.array([0.0, self.rot4_force, 0.0])
+        force1 = np.array([0.0, self.rot1_force, 0.0])
+        force2 = np.array([0.0, self.rot2_force, 0.0])
+        force3 = np.array([0.0, self.rot3_force, 0.0])
+        force4 = np.array([0.0, self.rot4_force, 0.0])
 
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot1_id,
                              forceObj=force1,
-                             posObj=self.rot1.get_position(),
-                             flags=p.WORLD_FRAME)
+                             posObj=self.rot1_pos_local,
+                             flags=p.LINK_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot2_id,
                              forceObj=force2,
-                             posObj=self.rot2.get_position(),
-                             flags=p.WORLD_FRAME)
+                             posObj=self.rot2_pos_local,
+                             flags=p.LINK_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot3_id,
                              forceObj=force3,
-                             posObj=self.rot3.get_position(),
-                             flags=p.WORLD_FRAME)
+                             posObj=self.rot3_pos_local,
+                             flags=p.LINK_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot4_id,
                              forceObj=force4,
-                             posObj=self.rot4.get_position(),
-                             flags=p.WORLD_FRAME)
+                             posObj=self.rot4_pos_local,
+                             flags=p.LINK_FRAME)
 
     def _get_altitude(self):
         return self.get_position()[1]
 
     def _get_pitch(self):
-        roll, pitch, yaw = p.getEulerFromQuaternion(self.get_orientation())
-        return -roll
+        yaw, pitch, roll = self.get_yaw_pitch_roll()
+        return roll # ?
+
+    def _get_roll(self):
+        yaw, pitch, roll = self.get_yaw_pitch_roll()
+        return pitch # ?
         
-    def move(self, window, time_delta: float):
+    def move(self, window, time_delta: float, time_total):
 
         # ------------------------------------------------------------
         # check key inputs
         # ------------------------------------------------------------
 
         # altitude
-        if self.check_pressed(window, glfw.KEY_O):
+        if self.check_pressed(window, glfw.KEY_Y):
             self.target_altitude += 0.2
-        if self.check_pressed(window, glfw.KEY_U):
+        if self.check_pressed(window, glfw.KEY_H):
             self.target_altitude -= 0.2
-        # movement
+        # pitch
         if self.check_pressed(window, glfw.KEY_I):
-            self.target_pitch = 0.5
+            self.target_pitch = 0.2
+            # self.target_velocity = 0.1
         elif self.check_pressed(window, glfw.KEY_K):
-            self.target_pitch = -0.5
+            # self.target_velocity = -0.1
+            self.target_pitch = -0.2
         else:
             self.target_pitch = 0.0
+            # self.target_velocity = 0
+
+        if self.check_pressed(window, glfw.KEY_L):
+            self.target_roll = 0.2
+        elif self.check_pressed(window, glfw.KEY_J):
+            self.target_roll = -0.2
+        else:
+            self.target_roll = 0.0
 
         # ------------------------------------------------------------
         # control
         # ------------------------------------------------------------
 
-        correction_altitude = self.pid_altitude.compute(self.target_altitude, self._get_altitude(), 1./240.)
-        correction_pitch = self.pid_pitch.compute(self.target_pitch, self._get_pitch(), 1./240.)
+        # linear_velocity, _ = p.getBaseVelocity(self.physics_id)
+        # horizontal_velocity = linear_velocity[2]
+        # self.target_velocity = 0.01
+        # velocity_correction = self.pid_velocity.compute(self.target_velocity, horizontal_velocity, 1/240)
+        # print(velocity_correction)
+
+        correction_altitude = self.pid_altitude.compute(self.target_altitude, self._get_altitude(), 1/240)
+        correction_pitch = self.pid_pitch.compute(self.target_pitch, self._get_pitch(), 1/240)
+        correction_roll = self.pid_roll.compute(self.target_roll, self._get_roll(), 1/240)
 
         self.rot1_force = self.base_force + correction_altitude
         self.rot2_force = self.base_force + correction_altitude
@@ -148,7 +213,15 @@ class Quadcopter(NightObject):
         self.rot3_force -= correction_pitch
         self.rot4_force += correction_pitch
 
-        print(self.target_pitch, round(self._get_pitch(), 2), round(correction_pitch, 2))
+        self.rot1_force += correction_roll
+        self.rot2_force += correction_roll
+        self.rot3_force -= correction_roll
+        self.rot4_force -= correction_roll
+
+        data_queue.put([time_total,
+                        self.target_altitude, self._get_altitude(),
+                        self.target_pitch, self._get_pitch(),
+                        self.target_roll, self._get_roll()])
 
         # --------- update rotor forces --------- #
 
@@ -165,14 +238,88 @@ class Example(NightBase):
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)
 
+        self.axes = ObjectAxes()
+        self.scene.add(self.axes)
+
         self.drone = Quadcopter(self.scene)
-        self.drone.set_position([0, 5, 0])
+        self.drone.set_position([0, 30, 0])
         self.scene.add(self.drone)
 
     def update(self):
-        self.drone.move(self.window, self.time_delta)
+        self.drone.move(self.window, self.time_delta, self.time)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":
+
+    def start_plotting(queue):
+        app = pg.mkQApp("dataplot")
+
+        win = pg.GraphicsLayoutWidget(show=True, title="drone data")
+        win.resize(900, 400)
+        win.setWindowTitle("drone data")
+        pg.setConfigOptions(antialias=True)
+
+        plot_altitude = win.addPlot(title="Altitude")
+        curve_altitude_target = plot_altitude.plot(pen='r')
+        curve_altitude_current = plot_altitude.plot(pen='y')
+        win.nextRow()
+        plot_pitch = win.addPlot(title="Pitch")
+        curve_pitch_target = plot_pitch.plot(pen='r')
+        curve_pitch_current = plot_pitch.plot(pen='y')
+        win.nextRow()
+        plot_roll = win.addPlot(title="Roll")
+        curve_roll_target = plot_roll.plot(pen='r')
+        curve_roll_current = plot_roll.plot(pen='y')
+
+        x_data = []
+        y_altitude_target = []
+        y_altitude_current = []
+        y_pitch_target = []
+        y_pitch_current = []
+        y_roll_target = []
+        y_roll_current = []
+
+        def update():
+            while not queue.empty():
+                data = queue.get()
+                x_data.append(data[0])
+                y_altitude_target.append(data[1])
+                y_altitude_current.append(data[2])
+                y_pitch_target.append(data[3])
+                y_pitch_current.append(data[4])
+                y_roll_target.append(data[5])
+                y_roll_current.append(data[6])
+
+                if len(x_data) > 3000:
+                    x_data.pop(0)
+                    y_altitude_target.pop(0)
+                    y_altitude_current.pop(0)
+                    y_pitch_target.pop(0)
+                    y_pitch_current.pop(0)
+                    y_roll_target.pop(0)
+                    y_roll_current.pop(0)
+
+                curve_altitude_target.setData(x_data, y_altitude_target)
+                curve_altitude_current.setData(x_data, y_altitude_current)
+                curve_pitch_target.setData(x_data, y_pitch_target)
+                curve_pitch_current.setData(x_data, y_pitch_current)
+                curve_roll_target.setData(x_data, y_roll_target)
+                curve_roll_current.setData(x_data, y_roll_current)
+
+        timer = QtCore.QTimer()
+        timer.timeout.connect(update)
+        timer.start(50)
+        app.exec_()
+
+    def signal_handler(sig, frame):
+        plotting_process.terminate()
+        plotting_process.join()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    plotting_process = Process(target=start_plotting, args=(data_queue,))
+    plotting_process.start()
+    
     engine = Example()
     engine.run()

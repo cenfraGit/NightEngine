@@ -139,8 +139,6 @@ class NightObject:
         return descendants
 
     def get_world_matrix(self):
-        """what if the object was not added to hierarchy but instead
-        linked with multibody?"""
         if self.parent == None:
             return self.transform
         else:
