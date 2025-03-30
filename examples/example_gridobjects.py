@@ -22,7 +22,7 @@ class MyObject(NightObject):
 
         # move forward/side respect to camera orientation
 
-        force = 100
+        force = 400
 
         forward = force * self.camera.get_forward_vector()
         side = force * self.camera.get_right_vector()
@@ -36,7 +36,7 @@ class MyObject(NightObject):
         if self.check_pressed(window, glfw.KEY_L):
             p.applyExternalForce(self.physics_id, -1, -side, self.get_position(), p.WORLD_FRAME)
         if self.check_pressed(window, glfw.KEY_Y):
-            p.applyExternalForce(self.physics_id, -1, [0, 500, 0], self.get_position(), p.WORLD_FRAME)
+            p.applyExternalForce(self.physics_id, -1, [0, 4000, 0], self.get_position(), p.WORLD_FRAME)
 
 class Example(NightBase):
     def setup(self):
