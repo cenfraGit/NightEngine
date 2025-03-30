@@ -7,12 +7,11 @@ from NightEngine.Objects.NightLink import NightLink
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Meshes.MeshBox import MeshBox
 from NightEngine.Meshes.MeshSphere import MeshSphere
-from NightEngine.Objects.ObjectGrid import ObjectGrid
-from NightEngine.Objects.ObjectAxes import ObjectAxes
 import pybullet as p
 import numpy as np
 import glfw
 import sys
+import math
 import signal
 
 from multiprocessing import Process, Queue
@@ -103,12 +102,12 @@ class Quadcopter(NightObject):
         # -------------- vel right -------------- #
         
         # create drone base
-        mesh = MeshBox(3, 1, 5)
+        mesh = MeshBox(3, 1, 5, color=[1.0, 1.0, 1.0])
         material = NightMaterialDefault()
         super().__init__(mesh, material, mass=0.06)
 
         # create rotors
-        mesh_rotors = MeshSphere(0.6)
+        mesh_rotors = MeshSphere(0.6, 8, color=[0.2, 0.2, 0.2])
 
         self.rot1_pos_local = [-1.7, 1, 2.7]
         self.rot2_pos_local = [-1.7, 1, -2.7]
@@ -128,6 +127,10 @@ class Quadcopter(NightObject):
         self.rot2_id = self.add_link(self.rot2, p.JOINT_FIXED)
         self.rot3_id = self.add_link(self.rot3, p.JOINT_FIXED)
         self.rot4_id = self.add_link(self.rot4, p.JOINT_FIXED)
+
+        self.camera = NightCamera()
+        self.camera.set_position([0, 1, 2.7])
+        self.cam_id = self.add_link(self.camera, p.JOINT_FIXED)
 
         scene.add(self.rot1)
         scene.add(self.rot2)
@@ -281,19 +284,56 @@ class Example(NightBase):
         self.camera.set_position([0, 20, 20])
         self.set_gravity(y=-40)
 
-        self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
-        self.scene.add(self.grid)
+        self.light_directional["direction"] = [-0.5, -1, 0]
 
-        self.axes = ObjectAxes()
-        self.scene.add(self.axes)
+        self.plane = NightObject(MeshBox(100, 0, 100, color=[0.5, 0.2, 0.1]), NightMaterialDefault())
+        self.scene.add(self.plane)      
 
         self.drone = Quadcopter(self.scene)
         self.drone.set_position([0, 30, 0])
         self.scene.add(self.drone)
 
+        # ------- lemniscate of bernoulli ------- #
+
+        path_color = [0.5, 0.5, 0.0]
+
+        box_width = 3
+        box_height = 0.4
+        box_depth = 5
+        num_boxes = 40
+        radius = 30
+        for i in range(num_boxes):
+            angle = i / num_boxes * 2 * math.pi
+            # parametric equations
+            x = radius * math.cos(angle) / (1 + math.sin(angle) ** 2)
+            y = box_height / 2
+            z = radius * math.sin(angle) * math.cos(angle) / (1 + math.sin(angle) ** 2)
+
+            path = NightObject(MeshBox(box_width, box_height, box_depth, color=path_color), NightMaterialDefault())
+            path.set_position([x, y, z])
+
+            # tangent
+            dz = radius * (-math.sin(angle) * (1 + math.sin(angle) ** 2) - math.cos(angle) * 2 * math.sin(angle) * math.cos(angle)) / ((1 + math.sin(angle) ** 2) ** 2)
+            dx = radius * (math.cos(2 * angle) * (1 + math.sin(angle) ** 2) - math.sin(angle) * math.cos(angle) * 2 * math.sin(angle) * math.cos(angle)) / ((1 + math.sin(angle) ** 2) ** 2)
+
+            if dx == 0 and dz == 0:
+                rotation_matrix = np.eye(3)
+            else:
+                tangent_angle = math.atan2(dx, dz)
+                rotation_matrix = np.array([
+                    [math.cos(-tangent_angle - math.pi / 2), 0, math.sin(-tangent_angle - math.pi / 2)],
+                    [0, 1, 0],
+                    [-math.sin(-tangent_angle - math.pi / 2), 0, math.cos(-tangent_angle - math.pi / 2)]
+                ])
+
+            path.set_rotation(rotation_matrix)
+            self.scene.add(path)
+
+        
     def update(self):
         self.drone.move(self.window, self.time_delta, self.time)
         self.draw_scene(self.camera)
+        # self.draw_scene(self.drone.camera)
 
 if __name__ == "__main__":
 
