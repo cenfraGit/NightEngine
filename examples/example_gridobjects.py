@@ -22,7 +22,7 @@ class MyObject(NightObject):
 
         # move forward/side respect to camera orientation
 
-        force = 400
+        force = 2000
 
         forward = force * self.camera.get_forward_vector()
         side = force * self.camera.get_right_vector()
@@ -44,7 +44,14 @@ class Example(NightBase):
         self.scene = self.create_scene()
         self.camera = NightCamera()
         self.camera.set_position([0, 10, 30])
-        self.set_gravity(y=-40)
+        self.set_gravity(y=-50)
+
+        self.light_directional = {
+            "direction": [-0.5, -0.5, 0],
+            "ambient": [0.3, 0.3, 0.3],
+            "diffuse": [1.0, 1.0, 1.0],
+            "specular": [1.0, 1.0, 1.0]
+        }
 
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)
@@ -58,11 +65,10 @@ class Example(NightBase):
 
         w = 5
         hor = 5
-        vert = 5
         for i in range(-hor, hor+1):
-            for j in range(2, vert):
-                cube = NightObject(MeshBox(w, w, w), NightMaterialDefault(), mass=1)
-                cube.set_position([i*w, j*w, 0])
+            for j in range(2, 6):
+                cube = NightObject(MeshBox(w, w, w, color=[0.7, 0, 0]), NightMaterialDefault(), mass=1)
+                cube.set_position([i*w+ i, j*w + 2*j, 0])
                 self.scene.add(cube)
 
     def update(self):
