@@ -87,6 +87,10 @@ class Example(NightBase):
         self.sphere.set_position([-10, 10, 0])
         self.scene.add(self.sphere)
 
+        self.sphere1 = NightObject(MeshSphere(5, 32), NightMaterialTexture("images/container.jpg"), 5)
+        self.sphere1.set_position([-20, 10, 0])
+        self.scene.add(self.sphere1)
+
     def update(self):
         self.box.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
