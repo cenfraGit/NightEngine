@@ -130,6 +130,7 @@ class Quadcopter(NightObject):
 
         self.camera = NightCamera()
         self.camera.set_position([0, 1, 2.7])
+        self.camera.rotate_x(1)
         self.cam_id = self.add_link(self.camera, p.JOINT_FIXED)
 
         scene.add(self.rot1)
@@ -280,8 +281,8 @@ class Example(NightBase):
     def setup(self):
 
         self.scene = self.create_scene()
-        self.camera = NightCamera()
-        self.camera.set_position([0, 20, 20])
+        # self.camera = NightCamera()
+        # self.camera.set_position([0, 20, 20])
         self.set_gravity(y=-40)
 
         self.light_directional["direction"] = [-0.5, -1, 0]
@@ -332,8 +333,8 @@ class Example(NightBase):
         
     def update(self):
         self.drone.move(self.window, self.time_delta, self.time)
-        self.draw_scene(self.camera)
-        # self.draw_scene(self.drone.camera)
+        # self.draw_scene(self.camera)
+        self.draw_scene(self.drone.camera)
 
 if __name__ == "__main__":
 
