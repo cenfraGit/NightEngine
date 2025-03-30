@@ -5,7 +5,7 @@ import pybullet as p
 
 
 class MeshBox(NightMesh):
-    def __init__(self, width=1.0, height=1.0, depth=1.0):
+    def __init__(self, width=1.0, height=1.0, depth=1.0, color=[1.0, 1.0, 1.0]):
 
         super().__init__()
 
@@ -17,10 +17,6 @@ class MeshBox(NightMesh):
         corner5 = [ width/2, -height/2,  depth/2]
         corner6 = [-width/2,  height/2,  depth/2]
         corner7 = [ width/2,  height/2,  depth/2]
-        
-        color_x_positive, color_x_negative = [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]
-        color_y_positive, color_y_negative = [0.0, 0.0, 0.5], [0.5, 0.5, 0.0]
-        color_z_positive, color_z_negative = [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]
 
         positions = [
             corner5, corner1, corner3, corner5, corner3, corner7,
@@ -31,12 +27,12 @@ class MeshBox(NightMesh):
             corner1, corner0, corner2, corner1, corner2, corner3
         ]
 
-        colors = ([color_x_positive]*6 +
-                  [color_x_negative]*6 +
-                  [color_y_positive]*6 +
-                  [color_y_negative]*6 +
-                  [color_z_positive]*6 +
-                  [color_z_negative]*6)
+        colors = ([color]*6 +
+                  [color]*6 +
+                  [color]*6 +
+                  [color]*6 +
+                  [color]*6 +
+                  [color]*6)
 
         normal_x_positive = [1.0, 0.0, 0.0]
         normal_x_negative = [-1.0, 0.0, 0.0]
@@ -52,9 +48,13 @@ class MeshBox(NightMesh):
                    [normal_z_positive]*6 +
                    [normal_z_negative]*6)
 
+        t0, t1, t2, t3 = [0, 0], [1, 0], [0, 1], [1, 1]
+        uvs = [t0, t1, t3, t0, t3, t2] * 6
+
         self.add_attribute("vertex_position", "vec3", positions)
         self.add_attribute("vertex_color",    "vec3", colors)
         self.add_attribute("vertex_normal",   "vec3", normals)
+        self.add_attribute("vertex_uv",       "vec2", uvs)
         self.vertex_count = len(positions)
         self.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
                                                         halfExtents=[width/2, height/2, depth/2]))

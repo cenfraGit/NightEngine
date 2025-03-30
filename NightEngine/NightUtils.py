@@ -125,5 +125,10 @@ class NightUtils:
             glUniform4f(variable_reference, data[0], data[1], data[2], data[3])
         elif data_type == "mat4":
             glUniformMatrix4fv(variable_reference, 1, GL_TRUE, data)
+        elif data_type == "sampler2D":
+            texture, unit = data
+            glActiveTexture(GL_TEXTURE0 + unit)
+            glBindTexture(GL_TEXTURE_2D, texture)
+            glUniform1i(variable_reference, unit)
         else:
             raise Exception(f"Warning: Wrong uniform type {data_type}.")

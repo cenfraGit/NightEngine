@@ -1,6 +1,7 @@
 # NightBase.py
 
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
+from NightEngine.Materials.NightMaterialTexture import NightMaterialTexture
 from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from NightEngine.Objects.NightObject import NightObject
 from NightEngine.Objects.NightLink import NightLink
@@ -120,10 +121,6 @@ class NightBase:
             # step physics simulation
             while accumulated_time >= fixed_time_step:
                 p.stepSimulation()
-                p.stepSimulation() # ?
-                p.stepSimulation() # ?
-                p.stepSimulation() # ?
-                p.stepSimulation() # ?
                 accumulated_time -= fixed_time_step
             # process input
             glfw.poll_events()
@@ -197,6 +194,24 @@ class NightBase:
                 NightUtils.set_uniform(obj.material.program, "material.specular", "vec3", obj.material.specular)
                 # camera pos for specular reflection
                 NightUtils.set_uniform(obj.material.program, "view_pos", "vec3", camera.get_position())
+
+            if isinstance(obj.material, NightMaterialTexture):
+                # set directional light
+                NightUtils.set_uniform(obj.material.program, "light_directional.direction", "vec3", self.light_directional["direction"])
+                NightUtils.set_uniform(obj.material.program, "light_directional.ambient", "vec3", self.light_directional["ambient"])
+                NightUtils.set_uniform(obj.material.program, "light_directional.diffuse", "vec3", self.light_directional["diffuse"])
+                NightUtils.set_uniform(obj.material.program, "light_directional.specular", "vec3", self.light_directional["specular"])
+                # set material qualities
+                NightUtils.set_uniform(obj.material.program, "material.shininess", "float", obj.material.shininess)
+                NightUtils.set_uniform(obj.material.program, "material.ambient", "vec3", obj.material.ambient)
+                NightUtils.set_uniform(obj.material.program, "material.diffuse", "vec3", obj.material.diffuse)
+                NightUtils.set_uniform(obj.material.program, "material.specular", "vec3", obj.material.specular)
+                # camera pos for specular reflection
+                NightUtils.set_uniform(obj.material.program, "view_pos", "vec3", camera.get_position())
+                # texture setup
+                NightUtils.set_uniform(obj.material.program, "uv_repeat", "vec2", [1.0, 1.0])
+                NightUtils.set_uniform(obj.material.program, "uv_offset", "vec2", [0.0, 0.0])
+                NightUtils.set_uniform(obj.material.program, "texture", "sampler2D", [obj.material.gl_texture, 1])
 
             obj.material.update_draw_settings()
 

@@ -5,6 +5,7 @@ from NightEngine.NightCamera import NightCamera
 from NightEngine.Objects.NightObject import NightObject
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Materials.NightMaterialLight import NightMaterialLight
+from NightEngine.Materials.NightMaterialTexture import NightMaterialTexture
 from NightEngine.Meshes.MeshBox import MeshBox
 from NightEngine.Meshes.MeshSphere import MeshSphere
 from NightEngine.Objects.ObjectGrid import ObjectGrid
@@ -77,6 +78,10 @@ class Example(NightBase):
         self.box1 = Box(NightMaterialLight())
         self.box1.set_position([0, 10, 0])
         self.scene.add(self.box1)
+
+        self.box2 = NightObject(MeshBox(10, 10, 10), NightMaterialTexture("images/container.jpg"), 5)
+        self.box2.set_position([20, 10, 0])
+        self.scene.add(self.box2)
 
         self.sphere = NightObject(MeshSphere(5, 32), NightMaterialDefault(), 5)
         self.sphere.set_position([-10, 10, 0])

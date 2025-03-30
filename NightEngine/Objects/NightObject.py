@@ -53,11 +53,14 @@ class NightObject:
         # on material program
 
         for variable_name, attribute_dict in mesh.attributes.items():
-            # NightMaterialLight requires vertex_position
+            # --------- material point light --------- #
             if isinstance(self.material, NightMaterialLight) and variable_name not in ["vertex_position"]:
                 continue
-            # NightMaterialDefault requires vertex_position, vertex_color, vertex_normal
+            # ----------- material default ----------- #
             if isinstance(self.material, NightMaterialDefault) and variable_name not in ["vertex_position", "vertex_color", "vertex_normal"]:
+                continue
+            # ----------- material texture ----------- #
+            if isinstance(self.material, NightMaterialDefault) and variable_name not in ["vertex_position", "vertex_color", "vertex_normal", "vertex_uv"]:
                 continue
             vbo = NightUtils.create_vbo(attribute_dict["data"])
             NightUtils.set_attribute_pointer(material.program,
