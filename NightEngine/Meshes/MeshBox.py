@@ -5,7 +5,7 @@ import pybullet as p
 
 
 class MeshBox(NightMesh):
-    def __init__(self, width=1.0, height=1.0, depth=1.0, color=[1.0, 1.0, 1.0]):
+    def __init__(self, width=1.0, height=1.0, depth=1.0, color=[1.0, 1.0, 1.0], collision=True):
 
         super().__init__()
 
@@ -56,5 +56,7 @@ class MeshBox(NightMesh):
         self.add_attribute("vertex_normal",   "vec3", normals)
         self.add_attribute("vertex_uv",       "vec2", uvs)
         self.vertex_count = len(positions)
-        self.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
-                                                        halfExtents=[width/2, height/2, depth/2]))
+
+        if collision:
+            self.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
+                                                            halfExtents=[width/2, height/2, depth/2]))

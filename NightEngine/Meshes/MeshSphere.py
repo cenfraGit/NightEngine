@@ -9,7 +9,7 @@ import pybullet as p
 import math
 
 class MeshSphere(NightMesh):
-    def __init__(self, radius=1.0, segments=16, color=[1.0, 1.0, 1.0]):
+    def __init__(self, radius=1.0, segments=16, color=[1.0, 1.0, 1.0], collision=True):
         super().__init__()
 
         positions = []   # List to hold vertex positions
@@ -83,6 +83,7 @@ class MeshSphere(NightMesh):
         self.vertex_count = len(positions)
 
         # add collision shape
-        self.set_collision_shape(p.createCollisionShape(p.GEOM_SPHERE,
-                                                       radius=radius))
+        if collision:
+            self.set_collision_shape(p.createCollisionShape(p.GEOM_SPHERE,
+                                                            radius=radius))
         
