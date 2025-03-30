@@ -15,7 +15,7 @@ class NightCamera(NightObject):
                  near=0.1,
                  far=1000.0):
         
-        super().__init__(MeshBox(1), NightMaterialDefault(), 100)
+        super().__init__(MeshBox(1), NightMaterialDefault(), 0)
 
         # -------------- properties -------------- #
 

@@ -142,7 +142,6 @@ class NightBase:
         # update camera
         # ------------------------------------------------------------
 
-        camera.move(self.window, self.time_delta)
         camera.aspect_ratio = self.width / self.height
         camera.update()
 

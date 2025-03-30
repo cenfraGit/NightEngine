@@ -92,6 +92,7 @@ class Example(NightBase):
         self.sky.rotate_x(-0.0002)
         self.light_directional["direction"][1] = sin(0.06*self.time)
         self.light_directional["direction"][2] = cos(0.06*self.time)
+        self.camera.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":

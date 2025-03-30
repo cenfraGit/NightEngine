@@ -54,7 +54,8 @@ class Example(NightBase):
                              forceObj=[fx, fy, fz],
                              posObj=moon_pos,
                              flags=p.WORLD_FRAME)
-
+        
+        self.camera.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":

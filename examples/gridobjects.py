@@ -75,6 +75,7 @@ class Example(NightBase):
         self.sphere.move(self.window, self.time_delta)
         p.changeDynamics(self.sphere.physics_id, -1, restitution=0.9)
         p.changeDynamics(self.grid.physics_id, -1, restitution=0.8)
+        self.camera.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
 if __name__ == "__main__":
