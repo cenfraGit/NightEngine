@@ -1,11 +1,10 @@
-# test_drone.py
+# drone.py
 
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.Objects.NightObject import NightObject
 from NightEngine.Objects.NightLink import NightLink
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
-from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from NightEngine.Meshes.MeshBox import MeshBox
 from NightEngine.Meshes.MeshSphere import MeshSphere
 from NightEngine.Objects.ObjectGrid import ObjectGrid
@@ -49,6 +48,7 @@ class Quadcopter(NightObject):
     def __init__(self, scene):
 
         self.base_force = 5
+        # self.base_force = 20
 
         self.target_altitude = 30
         self.target_pitch = 0
@@ -279,7 +279,7 @@ class Example(NightBase):
         self.scene = self.create_scene()
         self.camera = NightCamera()
         self.camera.set_position([0, 20, 20])
-        self.set_gravity(y=-10)
+        self.set_gravity(y=-40)
 
         self.grid = ObjectGrid(width=100, divisions=20, color=[0.5, 0.5, 0.5])
         self.scene.add(self.grid)

@@ -1,4 +1,4 @@
-# example_gridobjects.py
+# gridobjects.py
 
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera

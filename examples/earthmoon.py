@@ -1,4 +1,4 @@
-# example_earthmoon.py
+# earthmoon.py
 
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera

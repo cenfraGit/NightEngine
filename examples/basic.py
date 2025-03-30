@@ -1,4 +1,4 @@
-# example_basic.py
+# basic.py
 
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
