@@ -3,28 +3,42 @@
 NightEngine is a custom 3D rendering engine featuring real-time
 physics simulation, written with OpenGL and Bullet.
 
+*** Features
+- Base box and sphere meshes, with support for textures
+- Modifiable material attributes
+- Basic phong lighting for a single directional light
+- Customizable input for all objects using glfw keys
+  (absolute/relative movement/rotation or external forces)
+- Easy integration with PyBullet, automatic step simulation
+
+** Screenshots
+
 #+BEGIN_HTML
 <p align="center">
-<img src="images/img1.png"/>
+<img src="images/img2.png"/>
 </p>
 #+END_HTML
 
-*** Features
-- Base box and sphere meshes.
-- Modifiable material attributes.
-- Customizable input for all objects using glfw keys
-  (absolute/relative movement/rotation or external forces).
-- Easy integration with PyBullet, automatic step simulation.
+#+BEGIN_HTML
+<p align="center">
+<img src="images/img3.png"/>
+</p>
+#+END_HTML
 
 ** Installation
 
 #+BEGIN_SRC
-pip install -r requirements.txt
+git clone git@github.com:cenfraGit/NightEngine.git
+cd NightEngine/
+pip install .
 #+END_SRC
 
+To try out the examples, cd into the example directory and install the requirements:
+
 #+BEGIN_SRC
-python example_gridobjects.py
-python example_starplanet.py
+cd NightEngine/examples/
+pip install -r requirements-examples.txt
+python basic.py
 #+END_SRC
 
 https://youtu.be/OM5fHae5uJs

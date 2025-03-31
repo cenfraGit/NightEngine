@@ -14,6 +14,7 @@ setup(
         "glfw==2.8.0",
         "nodeenv==1.9.1",
         "numpy==2.2.3",
+        "pillow==11.1.0",
         "pybullet==3.2.7",
         "PyOpenGL==3.1.9",
         "PyOpenGL-accelerate==3.1.9",
