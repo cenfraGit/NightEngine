@@ -4,7 +4,6 @@ fonttools==4.56.0
 glfw==2.8.0
 kiwisolver==1.4.8
 matplotlib==3.10.1
--e git+ssh://git@github.com/cenfraGit/NightEngine.git@bdc3658ca103dc303a41f40a49b51166f0619b2a#egg=NightEngine
 nodeenv==1.9.1
 numpy==2.2.3
 packaging==24.2
