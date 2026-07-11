@@ -8,6 +8,7 @@ from NightEngine.Objects.NightLink import NightLink
 from NightEngine.NightUtils import NightUtils
 from NightEngine.NightCamera import NightCamera
 from NightEngine.NightShadow import NightShadow
+from NightEngine.NightVision import NightVisionCamera, NightVisionServer
 from scipy.spatial.transform import Rotation as R
 from OpenGL.GL import *
 import numpy as np
@@ -94,6 +95,13 @@ class NightBase:
         self.shadow = NightShadow(resolution=2048)
 
         # ------------------------------------------------------------
+        # machine vision (offscreen cameras + capture server)
+        # ------------------------------------------------------------
+
+        self.vision_cameras = []
+        self.vision_server = None
+
+        # ------------------------------------------------------------
         # init pybullet
         # ------------------------------------------------------------
 
@@ -167,6 +175,10 @@ class NightBase:
             glfw.poll_events()
             # update scene
             self.update()
+            # serve machine-vision clients (captures render here, on
+            # the gl thread)
+            if self.vision_server:
+                self.vision_server.process()
             # draw
             glfw.swap_buffers(self.window)
 
@@ -201,14 +213,19 @@ class NightBase:
             links.append((link_pos, link_orn))
         return {"pos": pos, "orn": orn, "links": links}
 
-    def draw_scene(self, camera: NightCamera):
-        """draws a scene from a camera perspective."""
+    def draw_scene(self, camera: NightCamera, width=None, height=None, framebuffer=0):
+        """draws a scene from a camera perspective. by default renders
+        to the window; pass width/height/framebuffer to render
+        offscreen (used by vision cameras)."""
+
+        width = width if width else self.width
+        height = height if height else self.height
 
         # ------------------------------------------------------------
         # update camera
         # ------------------------------------------------------------
 
-        camera.aspect_ratio = self.width / self.height
+        camera.aspect_ratio = width / height
         camera.update()
 
         # ------------------------------------------------------------
@@ -264,12 +281,14 @@ class NightBase:
                 if obj.material.gl_draw_style != GL_TRIANGLES:
                     continue
                 self.shadow.draw(obj)
-            self.shadow.end(self.width, self.height)
+            self.shadow.end()
 
         # ------------------------------------------------------------
-        # clear
+        # bind target framebuffer and clear
         # ------------------------------------------------------------
 
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
+        glViewport(0, 0, width, height)
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
         # ------------------------------------------------------------
@@ -343,6 +362,37 @@ class NightBase:
     def create_scene(self):
         self._scene = NightObject()
         return self._scene
+
+    # ------------------------------------------------------------
+    # machine vision
+    # ------------------------------------------------------------
+
+    def add_vision_camera(self, name=None, position=[0, 10, 10], target=[0, 0, 0],
+                          resolution=(640, 480), fov=60.0, near=0.1, far=1000.0):
+        """adds an offscreen inspection camera. returns the
+        NightVisionCamera; its index (for the protocol) is the order
+        of creation. attach vision_camera.camera to an object with
+        obj.add(...) for a moving camera."""
+        index = len(self.vision_cameras)
+        vision_camera = NightVisionCamera(name=name if name else f"camera{index}",
+                                          width=resolution[0],
+                                          height=resolution[1],
+                                          fov=fov, near=near, far=far)
+        vision_camera.camera.look_at(position=position, target=target)
+        self.vision_cameras.append(vision_camera)
+        return vision_camera
+
+    def start_vision_server(self, host="127.0.0.1", port=8555):
+        """starts the tcp server that lets external programs (opencv
+        scripts etc.) capture frames from the vision cameras."""
+        self.vision_server = NightVisionServer(self, host, port)
+        return self.vision_server
+
+    def vision_trigger(self, name, value):
+        """override to implement custom vision-triggered behavior
+        (lighting controllers, actuators...). return True if the
+        trigger was handled."""
+        return False
 
     def set_gravity(self, x=0.0, y=-9.8, z=0.0):
         """wrpper for pybullet setGravity"""

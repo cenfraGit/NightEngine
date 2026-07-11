@@ -100,8 +100,6 @@ class NightShadow:
         glBindVertexArray(obj.vao)
         glDrawArrays(GL_TRIANGLES, 0, obj.mesh.vertex_count)
 
-    def end(self, width, height):
-        """ends the depth pass and restores the default framebuffer."""
+    def end(self):
+        """ends the depth pass (caller rebinds its target framebuffer)."""
         glCullFace(GL_BACK)
-        glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        glViewport(0, 0, width, height)
