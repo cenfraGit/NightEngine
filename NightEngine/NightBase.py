@@ -89,6 +89,18 @@ class NightBase:
         # override
         pass
 
+    def setup_physics(self):
+        # override. called once after all physics bodies have been
+        # created, before the loop starts. use it for changeDynamics,
+        # initial velocities, etc.
+        pass
+
+    def physics_update(self, time_step: float):
+        # override. called once per fixed physics step, right before
+        # stepSimulation. apply forces/torques/velocities here so they
+        # act on every substep regardless of framerate.
+        pass
+
     def update(self):
         # override
         pass
@@ -105,10 +117,16 @@ class NightBase:
             if isinstance(obj, NightLink):
                 continue
             obj.init_multibody()
+        self.setup_physics()
         # set time step
         fixed_time_step = 1.0 / 240.0
         accumulated_time = 0.0
         p.setTimeStep(fixed_time_step)
+        self._interp_alpha = 1.0
+        # capture initial physics state so interpolation has a starting point
+        for obj in self._get_physics_objects():
+            obj._physics_state_curr = self._get_physics_state(obj)
+            obj._physics_state_prev = obj._physics_state_curr
         # run loop
         while not glfw.window_should_close(self.window):
             # calculate time
@@ -120,14 +138,54 @@ class NightBase:
             accumulated_time += self.time_delta
             # step physics simulation
             while accumulated_time >= fixed_time_step:
+                physics_objects = self._get_physics_objects()
+                for obj in physics_objects:
+                    obj._physics_state_prev = obj._physics_state_curr
+                self.physics_update(fixed_time_step)
                 p.stepSimulation()
+                for obj in physics_objects:
+                    obj._physics_state_curr = self._get_physics_state(obj)
                 accumulated_time -= fixed_time_step
+            # how far we are between the last two physics steps (for
+            # render interpolation)
+            self._interp_alpha = accumulated_time / fixed_time_step
             # process input
             glfw.poll_events()
             # update scene
             self.update()
             # draw
             glfw.swap_buffers(self.window)
+
+    def _get_physics_objects(self):
+        return [obj for obj in self._scene.get_descendants(include_self=False)
+                if obj.physics_id is not None]
+
+    def _get_physics_state(self, obj):
+        """reads base and link positions/orientations from pybullet."""
+        pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
+        links = []
+        num_links = p.getNumJoints(obj.physics_id)
+        if num_links:
+            if hasattr(p, "getLinkStates"):
+                states = p.getLinkStates(obj.physics_id, list(range(num_links)))
+            else:
+                states = [p.getLinkState(obj.physics_id, i) for i in range(num_links)]
+            links = [(s[0], s[1]) for s in states]
+        return {"pos": pos, "orn": orn, "links": links}
+
+    @staticmethod
+    def _interpolate_states(prev, curr, alpha):
+        """blends two physics states for stutter-free rendering."""
+        if prev is None or prev is curr or alpha >= 1.0:
+            return curr
+        pos = [c * alpha + q * (1.0 - alpha) for q, c in zip(prev["pos"], curr["pos"])]
+        orn = p.getQuaternionSlerp(prev["orn"], curr["orn"], alpha)
+        links = []
+        for (pos_prev, orn_prev), (pos_curr, orn_curr) in zip(prev["links"], curr["links"]):
+            link_pos = [c * alpha + q * (1.0 - alpha) for q, c in zip(pos_prev, pos_curr)]
+            link_orn = p.getQuaternionSlerp(orn_prev, orn_curr, alpha)
+            links.append((link_pos, link_orn))
+        return {"pos": pos, "orn": orn, "links": links}
 
     def draw_scene(self, camera: NightCamera):
         """draws a scene from a camera perspective."""
@@ -151,6 +209,8 @@ class NightBase:
 
         descendants = self._scene.get_descendants(include_self=False)
 
+        alpha = getattr(self, "_interp_alpha", 1.0)
+
         for obj in descendants:
 
             if not obj.visible:
@@ -161,18 +221,24 @@ class NightBase:
             # ------------------------------------------------------------
 
             if obj.physics_id != None:
-                # update render based on object physical position and orientation
-                pos, orn = p.getBasePositionAndOrientation(obj.physics_id)
-                obj.set_position(pos, reset_base=False)
-                obj.set_rotation(R.from_quat(orn).as_matrix(), reset_base=False)
+                # update render transform from the captured physics
+                # states, interpolated for stutter-free rendering
+                state = self._interpolate_states(obj._physics_state_prev,
+                                                 obj._physics_state_curr,
+                                                 alpha)
+                if state is None:
+                    state = self._get_physics_state(obj)
+                obj.set_position(state["pos"], reset_base=False)
+                obj.set_rotation(R.from_quat(state["orn"]).as_matrix(), reset_base=False)
                 # update object link visual representations
-                for i in range(p.getNumJoints(obj.physics_id)):
-                    link_data = p.getLinkState(obj.physics_id, i)
-                    link_pos = link_data[0]
-                    link_orn = link_data[1]
+                for i, (link_pos, link_orn) in enumerate(state["links"]):
                     obj.linkReferences[i].set_position(link_pos, reset_base=False)
                     obj.linkReferences[i].set_rotation(R.from_quat(link_orn).as_matrix(), reset_base=False)
-                    
+
+            # transform-only nodes (cameras, group nodes) have nothing to draw
+            if not obj.mesh or not obj.material:
+                continue
+
             glUseProgram(obj.material.program)
             glBindVertexArray(obj.vao)
             

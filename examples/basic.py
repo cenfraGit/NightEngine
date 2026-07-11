@@ -1,5 +1,9 @@
 # basic.py
 
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.Objects.NightObject import NightObject
@@ -18,44 +22,59 @@ class Box(NightObject):
         mesh = MeshBox(3, 5, 1, color=[0.2, 0, 0.5])
         super().__init__(mesh, material, 5)
 
-    def move(self, window, time_delta: float):
+    def move(self, window, time_step: float):
+        """velocity-based control: the box is a dynamic body, so it is
+        driven through the solver instead of being teleported. called
+        once per physics step from physics_update."""
 
-        amount = 10 * time_delta
+        speed = 10
+        speed_rotation = 3
+
+        linear, angular = self.get_velocity()
+        vx, vy, vz = linear
+        wx, wy, wz = angular
+        controlled_linear = False
+        controlled_angular = False
 
         # ----------- lateral movement ----------- #
 
         if self.check_pressed(window, glfw.KEY_L):
-            self.translate(amount, 0, 0, local=False)
+            vx = speed; controlled_linear = True
         if self.check_pressed(window, glfw.KEY_J):
-            self.translate(-amount, 0, 0, local=False)
+            vx = -speed; controlled_linear = True
         if self.check_pressed(window, glfw.KEY_I):
-            self.translate(0, 0, -amount, local=False)
+            vz = -speed; controlled_linear = True
         if self.check_pressed(window, glfw.KEY_K):
-            self.translate(0, 0, amount, local=False)
+            vz = speed; controlled_linear = True
         if self.check_pressed(window, glfw.KEY_Y):
-            self.translate(0, amount, 0, local=False)
+            vy = speed; controlled_linear = True
         if self.check_pressed(window, glfw.KEY_H):
-            self.translate(0, -amount, 0, local=False)
+            vy = -speed; controlled_linear = True
 
         # -------------- rotations -------------- #
 
         # x axis
         if self.check_pressed(window, glfw.KEY_O):
-            self.rotate_x(amount)
+            wx = speed_rotation; controlled_angular = True
         if self.check_pressed(window, glfw.KEY_U):
-            self.rotate_x(-amount)
+            wx = -speed_rotation; controlled_angular = True
 
         # y axis
         if self.check_pressed(window, glfw.KEY_T):
-            self.rotate_y(amount)
+            wy = speed_rotation; controlled_angular = True
         if self.check_pressed(window, glfw.KEY_G):
-            self.rotate_y(-amount)
+            wy = -speed_rotation; controlled_angular = True
 
         # z axis
         if self.check_pressed(window, glfw.KEY_R):
-            self.rotate_z(amount)
+            wz = speed_rotation; controlled_angular = True
         if self.check_pressed(window, glfw.KEY_F):
-            self.rotate_z(-amount)
+            wz = -speed_rotation; controlled_angular = True
+
+        if controlled_linear:
+            self.set_velocity(linear=[vx, vy, vz])
+        if controlled_angular:
+            self.set_velocity(angular=[wx, wy, wz])
 
 class Example(NightBase):
     def setup(self):
@@ -87,8 +106,10 @@ class Example(NightBase):
         self.sphere.set_position([-10, 10, 0])
         self.scene.add(self.sphere)
 
+    def physics_update(self, time_step):
+        self.box.move(self.window, time_step)
+
     def update(self):
-        self.box.move(self.window, self.time_delta)
         self.sky.rotate_x(-0.0002)
         self.light_directional["direction"][1] = sin(0.06*self.time)
         self.light_directional["direction"][2] = cos(0.06*self.time)

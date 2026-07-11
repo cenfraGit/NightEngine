@@ -9,6 +9,10 @@ import pybullet as p
 import math
 
 class MeshSphere(NightMesh):
+
+    # identical spheres share one bullet collision shape
+    _collision_shape_cache = {}
+
     def __init__(self, radius=1.0, segments=16, color=[1.0, 1.0, 1.0], collision=True):
         super().__init__()
 
@@ -84,6 +88,9 @@ class MeshSphere(NightMesh):
 
         # add collision shape
         if collision:
-            self.set_collision_shape(p.createCollisionShape(p.GEOM_SPHERE,
-                                                            radius=radius))
+            shape = MeshSphere._collision_shape_cache.get(radius)
+            if shape is None:
+                shape = p.createCollisionShape(p.GEOM_SPHERE, radius=radius)
+                MeshSphere._collision_shape_cache[radius] = shape
+            self.set_collision_shape(shape)
         

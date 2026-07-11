@@ -2,10 +2,17 @@
 # reads obj assumming triangulation
 
 from NightEngine.Meshes.NightMesh import NightMesh
+from scipy.spatial import ConvexHull
 import pybullet as p
+import numpy as np
+import math
 
 class NightMeshParse(NightMesh):
-    def __init__(self, filename, color=[1.0, 1.0, 1.0], collision=True):
+    def __init__(self, filename, color=[1.0, 1.0, 1.0], collision=True, collision_mode="hull"):
+        """collision_mode:
+        - "hull": convex hull of the model (works for dynamic bodies)
+        - "trimesh": exact concave triangle mesh, static only (mass=0)
+        """
         positions = []
         vertices = []
         faces = []
@@ -63,5 +70,22 @@ class NightMeshParse(NightMesh):
         self.add_attribute("vertex_uv",       "vec2", uvs_new)
         self.vertex_count = len(positions)
 
-        # if collision:
-        #     self.set_collision_shape(p.createCollisionShape(p.GEOM_MESH, fileName=filename))
+        if collision:
+            if collision_mode == "trimesh":
+                # bullet builds a concave triangle mesh straight from
+                # the file. only valid for static (mass=0) objects.
+                self.set_collision_shape(p.createCollisionShape(p.GEOM_MESH,
+                                                                fileName=filename))
+            elif collision_mode == "hull":
+                # convex hull of the unique vertices: safe for dynamic
+                # bodies, and keeps the vertex count far below
+                # bullet's shared-memory upload limit
+                points = np.array(vertices)
+                hull_points = points[ConvexHull(points).vertices]
+                if len(hull_points) > 1024:
+                    stride = math.ceil(len(hull_points) / 1024)
+                    hull_points = hull_points[::stride]
+                self.set_collision_shape(p.createCollisionShape(p.GEOM_MESH,
+                                                                vertices=hull_points.tolist()))
+            else:
+                raise Exception(f"unknown collision_mode: {collision_mode}")

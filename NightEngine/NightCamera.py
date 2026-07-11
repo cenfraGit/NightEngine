@@ -2,8 +2,6 @@
 
 from NightEngine.Objects.NightObject import NightObject
 from NightEngine.NightMatrix import NightMatrix
-from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
-from NightEngine.Meshes.MeshBox import MeshBox
 import numpy as np
 import math
 import glfw
@@ -14,8 +12,9 @@ class NightCamera(NightObject):
                  aspect_ratio=1.0,
                  near=0.1,
                  far=1000.0):
-        
-        super().__init__(MeshBox(1), NightMaterialDefault(), 0)
+
+        # transform-only node: no mesh, no material, no physics body
+        super().__init__()
 
         # -------------- properties -------------- #
 
@@ -37,14 +36,13 @@ class NightCamera(NightObject):
 
         # ------------- update view ------------- #
 
-        position = self.get_position()
-        forward = self.get_forward_vector()
+        # use the world matrix so the camera also works when attached
+        # as a child of another object (e.g. a vehicle)
+        world = self.get_world_matrix()
+        position = np.array([world[0, 3], world[1, 3], world[2, 3]])
+        forward = np.array(world[0:3, 2])
         target = position + forward
         self.matrix_view = NightMatrix.get_lookat(position, target, [0, 1, 0])
-
-        self.matrix_projection = NightMatrix.get_perspective(self.fov,
-                                                             self.aspect_ratio,
-                                                             self.near, self.far)
 
         # ---------- update perspective ---------- #
 

@@ -5,6 +5,10 @@ import pybullet as p
 
 
 class MeshBox(NightMesh):
+
+    # identical boxes share one bullet collision shape
+    _collision_shape_cache = {}
+
     def __init__(self, width=1.0, height=1.0, depth=1.0, color=[1.0, 1.0, 1.0], collision=True):
 
         super().__init__()
@@ -58,5 +62,10 @@ class MeshBox(NightMesh):
         self.vertex_count = len(positions)
 
         if collision:
-            self.set_collision_shape(p.createCollisionShape(p.GEOM_BOX,
-                                                            halfExtents=[width/2, height/2, depth/2]))
+            key = (width, height, depth)
+            shape = MeshBox._collision_shape_cache.get(key)
+            if shape is None:
+                shape = p.createCollisionShape(p.GEOM_BOX,
+                                               halfExtents=[width/2, height/2, depth/2])
+                MeshBox._collision_shape_cache[key] = shape
+            self.set_collision_shape(shape)

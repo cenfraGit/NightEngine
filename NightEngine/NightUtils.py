@@ -96,17 +96,27 @@ class NightUtils:
         
         glEnableVertexAttribArray(variable_reference)
 
+    # uniform locations never change after a program is linked, so
+    # look each one up once instead of every draw call
+    _uniform_location_cache = {}
+
     @staticmethod
     def set_uniform(program, variable_name, data_type, data):
 
         # ------------- find uniform ------------- #
 
         glUseProgram(program)
-        
-        variable_reference = glGetUniformLocation(program, variable_name)
+
+        key = (program, variable_name)
+        variable_reference = NightUtils._uniform_location_cache.get(key)
+
+        if variable_reference is None:
+            variable_reference = glGetUniformLocation(program, variable_name)
+            NightUtils._uniform_location_cache[key] = variable_reference
+            if variable_reference == -1:
+                print(f"Warning: Uniform {variable_name} not found in program {program}.")
 
         if variable_reference == -1:
-            print(f"Warning: Uniform {variable_name} not found in program {program}.")
             return
 
         # --------------- set data --------------- #

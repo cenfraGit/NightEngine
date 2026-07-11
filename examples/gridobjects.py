@@ -1,5 +1,9 @@
 # gridobjects.py
 
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.Objects.NightObject import NightObject
@@ -18,25 +22,27 @@ class MyObject(NightObject):
         self.camera = camera
         super().__init__(mesh, material, mass=5)
 
-    def move(self, window, time_delta: float):
+    def move(self, window, time_step: float):
 
-        # move forward/side respect to camera orientation
+        # move forward/side respect to camera orientation. called once
+        # per physics step, so the force acts on every substep (forces
+        # were scaled down 4x accordingly)
 
-        force = 2000
+        force = 500
 
         forward = force * self.camera.get_forward_vector()
         side = force * self.camera.get_right_vector()
 
         if self.check_pressed(window, glfw.KEY_I):
-            p.applyExternalForce(self.physics_id, -1, forward, self.get_position(), p.WORLD_FRAME)
+            self.apply_force(forward, self.get_position(), local=False)
         if self.check_pressed(window, glfw.KEY_K):
-            p.applyExternalForce(self.physics_id, -1, -forward, self.get_position(), p.WORLD_FRAME)
+            self.apply_force(-forward, self.get_position(), local=False)
         if self.check_pressed(window, glfw.KEY_J):
-            p.applyExternalForce(self.physics_id, -1, side, self.get_position(), p.WORLD_FRAME)
+            self.apply_force(side, self.get_position(), local=False)
         if self.check_pressed(window, glfw.KEY_L):
-            p.applyExternalForce(self.physics_id, -1, -side, self.get_position(), p.WORLD_FRAME)
+            self.apply_force(-side, self.get_position(), local=False)
         if self.check_pressed(window, glfw.KEY_Y):
-            p.applyExternalForce(self.physics_id, -1, [0, 4000, 0], self.get_position(), p.WORLD_FRAME)
+            self.apply_force([0, 1000, 0], self.get_position(), local=False)
 
 class Example(NightBase):
     def setup(self):
@@ -71,10 +77,14 @@ class Example(NightBase):
                 cube.set_position([i*w+ i, j*w + 2*j, 0])
                 self.scene.add(cube)
 
-    def update(self):
-        self.sphere.move(self.window, self.time_delta)
+    def setup_physics(self):
         p.changeDynamics(self.sphere.physics_id, -1, restitution=0.9)
         p.changeDynamics(self.grid.physics_id, -1, restitution=0.8)
+
+    def physics_update(self, time_step):
+        self.sphere.move(self.window, time_step)
+
+    def update(self):
         self.camera.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 

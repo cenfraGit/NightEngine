@@ -1,5 +1,9 @@
 # earthmoon.py
 
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from NightEngine.NightBase import NightBase
 from NightEngine.NightCamera import NightCamera
 from NightEngine.Objects.NightObject import NightObject
@@ -25,26 +29,25 @@ class Example(NightBase):
         self.moon.set_position([40, 0, 0])
         self.scene.add(self.moon)
 
-        self.initial_velocity = False
+        self.G = 30
 
-    def update(self):
-        
+    def setup_physics(self):
+        p.changeDynamics(self.moon.physics_id, -1, linearDamping=0, angularDamping=0)
+        # circular orbit: v = sqrt(G * M / r)
+        orbital_speed = (self.G * self.earth.mass / 40) ** 0.5
+        self.moon.set_velocity(linear=[0, 0, orbital_speed])
+
+    def physics_update(self, time_step):
+        # gravitational pull, applied on every physics step
         sun_pos, _ = p.getBasePositionAndOrientation(self.earth.physics_id)
         moon_pos, _ = p.getBasePositionAndOrientation(self.moon.physics_id)
 
-        p.changeDynamics(self.moon.physics_id, -1, linearDamping=0, angularDamping=0)
-
-        if not self.initial_velocity:
-            p.resetBaseVelocity(self.moon.physics_id, linearVelocity=[0, 0, 5])
-            self.initial_velocity = True
-            
-        G = 30
         dx = sun_pos[0] - moon_pos[0]
         dy = sun_pos[1] - moon_pos[1]
         dz = sun_pos[2] - moon_pos[2]
         dist_sq = dx**2 + dy**2 + dz**2
         dist = dist_sq**0.5
-        force = G * self.earth.mass * self.moon.mass / dist_sq
+        force = self.G * self.earth.mass * self.moon.mass / dist_sq
         fx = force * dx / dist
         fy = force * dy / dist
         fz = force * dz / dist
@@ -54,7 +57,8 @@ class Example(NightBase):
                              forceObj=[fx, fy, fz],
                              posObj=moon_pos,
                              flags=p.WORLD_FRAME)
-        
+
+    def update(self):
         self.camera.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
