@@ -73,42 +73,33 @@ class Quadcopter(NightObject):
         # controllers
         # ------------------------------------------------------------
 
-        # gains are divided by 4: they were tuned when forces only
-        # acted on ~1 of 4 physics substeps, so effective authority is
-        # now 4x what it was
+        # gains tuned against the fixed per-substep simulation with a
+        # headless search (ITAE cost on step responses, then a combined
+        # climb/forward/lateral/yaw validation flight)
 
         # --------------- altitude --------------- #
 
-        ku = 3
-        tu = 1.071
-        kp, ki, kd = 0.6 * ku / 4, tu / 2 / 4, tu / 8 / 4
-        self.pid_altitude = ControllerPID(kp=kp, ki=ki, kd=kd)
+        self.pid_altitude = ControllerPID(kp=12.0, ki=0.0, kd=1.5)
 
         # ---------------- pitch ---------------- #
 
-        ku = 1.07
-        tu = 1.45
-        kp, ki, kd = 0.6 * ku / 4, tu / 2 / 4, tu / 8 / 4
-        self.pid_pitch = ControllerPID(kp=kp, ki=ki, kd=kd)
+        self.pid_pitch = ControllerPID(kp=6.0, ki=0.0, kd=1.5)
 
         # ----------------- roll ----------------- #
 
-        ku = 1.07
-        tu = 1.25
-        kp, ki, kd = 0.6 * ku / 4, tu / 2 / 4, tu / 8 / 4
-        self.pid_roll = ControllerPID(kp=kp, ki=ki, kd=kd)
+        self.pid_roll = ControllerPID(kp=6.0, ki=0.0, kd=0.8)
 
         # ----------------- yaw ----------------- #
 
-        self.pid_yaw = ControllerPID(kp=15, ki=7.5, kd=0)
+        self.pid_yaw = ControllerPID(kp=240.0, ki=3.0, kd=0.0)
 
         # ------------- vel forward ------------- #
-        
-        self.pid_velocity_forward = ControllerPID(kp=0.08, ki=0.0, kd=0.0)
+
+        self.pid_velocity_forward = ControllerPID(kp=0.08, ki=0.01, kd=0.0)
 
         # -------------- vel right -------------- #
 
-        self.pid_velocity_right = ControllerPID(kp=0.08, ki=0.0, kd=0.0)
+        self.pid_velocity_right = ControllerPID(kp=0.08, ki=0.01, kd=0.0)
 
         # -------------- vel right -------------- #
         
@@ -158,25 +149,28 @@ class Quadcopter(NightObject):
         force3 = np.array([0.0, self.rot3_force, 0.0])
         force4 = np.array([0.0, self.rot4_force, 0.0])
 
+        # posObj is relative to the LINK frame, whose origin already
+        # sits at the rotor: [0,0,0] applies thrust at the rotor
+        # itself (the old rotor offsets doubled the torque arm)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot1_id,
                              forceObj=force1,
-                             posObj=self.rot1_pos_local,
+                             posObj=[0, 0, 0],
                              flags=p.LINK_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot2_id,
                              forceObj=force2,
-                             posObj=self.rot2_pos_local,
+                             posObj=[0, 0, 0],
                              flags=p.LINK_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot3_id,
                              forceObj=force3,
-                             posObj=self.rot3_pos_local,
+                             posObj=[0, 0, 0],
                              flags=p.LINK_FRAME)
         p.applyExternalForce(self.physics_id,
                              linkIndex=self.rot4_id,
                              forceObj=force4,
-                             posObj=self.rot4_pos_local,
+                             posObj=[0, 0, 0],
                              flags=p.LINK_FRAME)
         
         p.applyExternalTorque(self.physics_id,
@@ -253,7 +247,10 @@ class Quadcopter(NightObject):
         velocity_forward = -local_velocity[2]
         velocity_right = -local_velocity[0]
         
-        velocity_forward_correction = self.pid_velocity_forward.compute(-self.target_velocity_forward, velocity_forward, time_step)
+        # note: +pitch target accelerates forward, so the error is
+        # simply target - current (the old -target here made the loop
+        # positive feedback)
+        velocity_forward_correction = self.pid_velocity_forward.compute(self.target_velocity_forward, velocity_forward, time_step)
         velocity_right_correction = self.pid_velocity_right.compute(self.target_velocity_right, velocity_right, time_step)
 
         self.target_pitch = velocity_forward_correction
