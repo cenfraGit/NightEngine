@@ -70,6 +70,14 @@ class NightBase:
             "diffuse": [1.0, 1.0, 1.0],
             "specular": [1.0, 1.0, 1.0]
         }
+        # point light (flash/strobe/work light). color is rgb
+        # premultiplied by intensity; black = off.
+        self.light_point = {
+            "position": [0, 10, 0],
+            "color": [0.0, 0.0, 0.0],
+            "attenuation_linear": 0.02,
+            "attenuation_quadratic": 0.002,
+        }
 
         # ------------------------------------------------------------
         # opengl states
@@ -330,6 +338,11 @@ class NightBase:
                     NightUtils.set_uniform(obj.material.program, "matrix_light", "mat4", matrix_light)
                     NightUtils.set_uniform(obj.material.program, "shadow_map", "sampler2D", [self.shadow.texture, 7])
                     NightUtils.set_uniform(obj.material.program, "shadow_bias", "float", self.shadow_bias)
+                # point light
+                NightUtils.set_uniform(obj.material.program, "light_point.position", "vec3", self.light_point["position"])
+                NightUtils.set_uniform(obj.material.program, "light_point.color", "vec3", self.light_point["color"])
+                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_linear", "float", self.light_point["attenuation_linear"])
+                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_quadratic", "float", self.light_point["attenuation_quadratic"])
 
             if isinstance(obj.material, NightMaterialTexture):
                 # set directional light
@@ -350,6 +363,11 @@ class NightBase:
                     NightUtils.set_uniform(obj.material.program, "matrix_light", "mat4", matrix_light)
                     NightUtils.set_uniform(obj.material.program, "shadow_map", "sampler2D", [self.shadow.texture, 7])
                     NightUtils.set_uniform(obj.material.program, "shadow_bias", "float", self.shadow_bias)
+                # point light
+                NightUtils.set_uniform(obj.material.program, "light_point.position", "vec3", self.light_point["position"])
+                NightUtils.set_uniform(obj.material.program, "light_point.color", "vec3", self.light_point["color"])
+                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_linear", "float", self.light_point["attenuation_linear"])
+                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_quadratic", "float", self.light_point["attenuation_quadratic"])
                 # texture setup
                 NightUtils.set_uniform(obj.material.program, "uv_repeat", "vec2", [1.0, 1.0])
                 NightUtils.set_uniform(obj.material.program, "uv_offset", "vec2", [0.0, 0.0])

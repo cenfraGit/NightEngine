@@ -102,8 +102,9 @@ def demo_snap(client):
 
 
 def demo_view(client, camera):
-    """continuous capture with a simple cv pipeline (canny edges)."""
-    print("live view: press q to quit")
+    """continuous capture with a simple cv pipeline (canny edges).
+    keys: f = fire flash strobe (500ms), q = quit."""
+    print("live view: press f to fire the flash, q to quit")
     t_last, fps = time.time(), 0.0
     while True:
         frame = client.capture(camera)
@@ -114,12 +115,15 @@ def demo_view(client, camera):
         now = time.time()
         fps = 0.9 * fps + 0.1 * (1.0 / max(now - t_last, 1e-6))
         t_last = now
-        cv2.putText(view, f"{fps:5.1f} fps", (10, 25),
+        cv2.putText(view, f"{fps:5.1f} fps   [f] flash  [q] quit", (10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
         cv2.imshow("NightEngine vision", view)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
             break
+        if key == ord("f"):
+            client.trigger("flash", 0.5)
     cv2.destroyAllWindows()
 
 

@@ -22,8 +22,12 @@ from NightEngine.NightCamera import NightCamera
 from NightEngine.Objects.NightObject import NightObject
 from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
 from NightEngine.Materials.NightMaterialTexture import NightMaterialTexture
+from NightEngine.Materials.NightMaterialLight import NightMaterialLight
 from NightEngine.Meshes.MeshBox import MeshBox
 from NightEngine.Meshes.MeshSphere import MeshSphere
+
+FLASH_POSITION = [0, 7, 5]     # strobe lamp over the inspection area
+FLASH_COLOR = [2.5, 2.5, 2.2]  # slightly warm, deliberately overdriven
 
 BELT_SPEED = 4.0       # units/s the parts move at
 BELT_END_X = 22.0      # parts teleport back once past this
@@ -71,6 +75,20 @@ class Example(NightBase):
             self.scene.add(part)
             self.parts.append(part)
 
+        # --------------- flash strobe --------------- #
+        # point light + a small emissive bulb gizmo, fired by the
+        # "flash" trigger for a given duration
+
+        self.flash_until = 0.0
+        self.light_point["position"] = list(FLASH_POSITION)
+        self.light_point["color"] = [0.0, 0.0, 0.0]
+
+        self.flash_bulb = NightObject(MeshSphere(0.5, 12, collision=False),
+                                      NightMaterialLight(color=[1.0, 1.0, 0.85]), 0)
+        self.flash_bulb.set_position(FLASH_POSITION)
+        self.flash_bulb.visible = False
+        self.scene.add(self.flash_bulb)
+
         # -------------- vision cameras -------------- #
 
         # camera 0: top-down inspection camera over the belt center
@@ -104,6 +122,11 @@ class Example(NightBase):
         if name == "shadows":
             self.shadows_enabled = bool(value)
             return True
+        if name == "flash":
+            # strobe: on for `value` seconds (default 0.5)
+            duration = float(value) if value else 0.5
+            self.flash_until = self.time + duration
+            return True
         return False
 
     def physics_update(self, time_step):
@@ -116,6 +139,11 @@ class Example(NightBase):
                 part.set_position([-BELT_END_X, position[1], position[2]])
 
     def update(self):
+        # flash strobe timer
+        flashing = self.time < self.flash_until
+        self.light_point["color"] = FLASH_COLOR if flashing else [0.0, 0.0, 0.0]
+        self.flash_bulb.visible = flashing
+
         self.camera.move(self.window, self.time_delta)
         self.draw_scene(self.camera)
 
