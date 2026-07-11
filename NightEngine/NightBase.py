@@ -7,6 +7,7 @@ from NightEngine.Objects.NightObject import NightObject
 from NightEngine.Objects.NightLink import NightLink
 from NightEngine.NightUtils import NightUtils
 from NightEngine.NightCamera import NightCamera
+from NightEngine.NightShadow import NightShadow
 from scipy.spatial.transform import Rotation as R
 from OpenGL.GL import *
 import numpy as np
@@ -78,6 +79,19 @@ class NightBase:
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glClearColor(0.0, 0.0, 0.0, 1)
+
+        # ------------------------------------------------------------
+        # shadows (directional light shadow mapping)
+        # ------------------------------------------------------------
+
+        self.shadows_enabled = True
+        self.shadow_target = [0, 0, 0]   # center of the shadow box
+        self.shadow_size = 60.0          # half-width of the shadow box
+        self.shadow_near = 1.0
+        self.shadow_far = 300.0
+        self.shadow_distance = 100.0     # light "position" distance from target
+        self.shadow_bias = 0.0015
+        self.shadow = NightShadow(resolution=2048)
 
         # ------------------------------------------------------------
         # init pybullet
@@ -191,12 +205,6 @@ class NightBase:
         """draws a scene from a camera perspective."""
 
         # ------------------------------------------------------------
-        # clear
-        # ------------------------------------------------------------
-
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-
-        # ------------------------------------------------------------
         # update camera
         # ------------------------------------------------------------
 
@@ -204,7 +212,7 @@ class NightBase:
         camera.update()
 
         # ------------------------------------------------------------
-        # draw objects
+        # update objects from physics
         # ------------------------------------------------------------
 
         descendants = self._scene.get_descendants(include_self=False)
@@ -213,27 +221,65 @@ class NightBase:
 
         for obj in descendants:
 
-            if not obj.visible:
+            if not obj.visible or obj.physics_id is None:
                 continue
 
-            # ------------------------------------------------------------
-            # update objects from physics
-            # ------------------------------------------------------------
+            # update render transform from the captured physics
+            # states, interpolated for stutter-free rendering
+            state = self._interpolate_states(obj._physics_state_prev,
+                                             obj._physics_state_curr,
+                                             alpha)
+            if state is None:
+                state = self._get_physics_state(obj)
+            obj.set_position(state["pos"], reset_base=False)
+            obj.set_rotation(R.from_quat(state["orn"]).as_matrix(), reset_base=False)
+            # update object link visual representations
+            for i, (link_pos, link_orn) in enumerate(state["links"]):
+                obj.linkReferences[i].set_position(link_pos, reset_base=False)
+                obj.linkReferences[i].set_rotation(R.from_quat(link_orn).as_matrix(), reset_base=False)
 
-            if obj.physics_id != None:
-                # update render transform from the captured physics
-                # states, interpolated for stutter-free rendering
-                state = self._interpolate_states(obj._physics_state_prev,
-                                                 obj._physics_state_curr,
-                                                 alpha)
-                if state is None:
-                    state = self._get_physics_state(obj)
-                obj.set_position(state["pos"], reset_base=False)
-                obj.set_rotation(R.from_quat(state["orn"]).as_matrix(), reset_base=False)
-                # update object link visual representations
-                for i, (link_pos, link_orn) in enumerate(state["links"]):
-                    obj.linkReferences[i].set_position(link_pos, reset_base=False)
-                    obj.linkReferences[i].set_rotation(R.from_quat(link_orn).as_matrix(), reset_base=False)
+        # ------------------------------------------------------------
+        # shadow depth pass (scene from the light's point of view)
+        # ------------------------------------------------------------
+
+        matrix_light = None
+        if self.shadows_enabled:
+            matrix_light = self.shadow.get_light_matrix(
+                self.light_directional["direction"],
+                target=self.shadow_target,
+                size=self.shadow_size,
+                near=self.shadow_near,
+                far=self.shadow_far,
+                distance=self.shadow_distance)
+            self.shadow.begin(matrix_light)
+            for obj in descendants:
+                if not obj.visible or not obj.mesh or not obj.material:
+                    continue
+                if not obj.cast_shadow:
+                    continue
+                # only lit triangle geometry casts shadows (skips sky
+                # domes, grids, axes, light gizmos)
+                if not getattr(obj.material, "lighting", False):
+                    continue
+                if obj.material.gl_draw_style != GL_TRIANGLES:
+                    continue
+                self.shadow.draw(obj)
+            self.shadow.end(self.width, self.height)
+
+        # ------------------------------------------------------------
+        # clear
+        # ------------------------------------------------------------
+
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
+
+        # ------------------------------------------------------------
+        # draw objects
+        # ------------------------------------------------------------
+
+        for obj in descendants:
+
+            if not obj.visible:
+                continue
 
             # transform-only nodes (cameras, group nodes) have nothing to draw
             if not obj.mesh or not obj.material:
@@ -259,6 +305,12 @@ class NightBase:
                 NightUtils.set_uniform(obj.material.program, "material.specular", "vec3", obj.material.specular)
                 # camera pos for specular reflection
                 NightUtils.set_uniform(obj.material.program, "view_pos", "vec3", camera.get_position())
+                # shadows
+                NightUtils.set_uniform(obj.material.program, "bool_shadows", "bool", self.shadows_enabled)
+                if self.shadows_enabled:
+                    NightUtils.set_uniform(obj.material.program, "matrix_light", "mat4", matrix_light)
+                    NightUtils.set_uniform(obj.material.program, "shadow_map", "sampler2D", [self.shadow.texture, 7])
+                    NightUtils.set_uniform(obj.material.program, "shadow_bias", "float", self.shadow_bias)
 
             if isinstance(obj.material, NightMaterialTexture):
                 # set directional light
@@ -273,10 +325,16 @@ class NightBase:
                 NightUtils.set_uniform(obj.material.program, "material.specular", "vec3", obj.material.specular)
                 # camera pos for specular reflection
                 NightUtils.set_uniform(obj.material.program, "view_pos", "vec3", camera.get_position())
+                # shadows
+                NightUtils.set_uniform(obj.material.program, "bool_shadows", "bool", self.shadows_enabled)
+                if self.shadows_enabled:
+                    NightUtils.set_uniform(obj.material.program, "matrix_light", "mat4", matrix_light)
+                    NightUtils.set_uniform(obj.material.program, "shadow_map", "sampler2D", [self.shadow.texture, 7])
+                    NightUtils.set_uniform(obj.material.program, "shadow_bias", "float", self.shadow_bias)
                 # texture setup
                 NightUtils.set_uniform(obj.material.program, "uv_repeat", "vec2", [1.0, 1.0])
                 NightUtils.set_uniform(obj.material.program, "uv_offset", "vec2", [0.0, 0.0])
-                NightUtils.set_uniform(obj.material.program, "texture", "sampler2D", [obj.material.gl_texture, 1])
+                NightUtils.set_uniform(obj.material.program, "texture_diffuse", "sampler2D", [obj.material.gl_texture, 1])
 
             obj.material.update_draw_settings()
 

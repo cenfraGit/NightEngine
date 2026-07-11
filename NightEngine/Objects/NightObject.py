@@ -29,6 +29,7 @@ class NightObject:
         # -------------- properties -------------- #
 
         self.visible = True
+        self.cast_shadow = True
 
         self.mass = mass
         self.physics_id = None

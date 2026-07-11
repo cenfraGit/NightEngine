@@ -38,6 +38,9 @@ class NightUtils:
 
         glAttachShader(program, shader_vertex)
         glAttachShader(program, shader_fragment)
+        # vertex_position is always at location 0, so every program
+        # (including the shadow depth pass) can reuse the same VAOs
+        glBindAttribLocation(program, 0, "vertex_position")
         glLinkProgram(program)
 
         # ----------- check if success ----------- #

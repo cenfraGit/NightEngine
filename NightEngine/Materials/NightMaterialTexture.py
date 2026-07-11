@@ -66,7 +66,8 @@ class NightMaterialTexture:
         uniform mat4 matrix_projection;
         uniform mat4 matrix_view;
         uniform mat4 matrix_model;
-        
+        uniform mat4 matrix_light;
+
         in vec3 vertex_position;
         in vec3 vertex_color;
         in vec3 vertex_normal;
@@ -74,16 +75,18 @@ class NightMaterialTexture:
 
         uniform vec2 uv_repeat;
         uniform vec2 uv_offset;
-        
+
         out vec3 normal;
         out vec3 color;
         out vec3 frag_pos;
+        out vec4 frag_pos_light;
         out vec2 uv;
-        
+
         void main() {
           normal = mat3(transpose(inverse(matrix_model))) * vertex_normal;
           color = vertex_color;
           frag_pos = vec3(matrix_model * vec4(vertex_position, 1.0));
+          frag_pos_light = matrix_light * vec4(frag_pos, 1.0);
           uv = vertex_uv * uv_repeat + uv_offset;
           gl_Position = matrix_projection * matrix_view * matrix_model * vec4(vertex_position, 1.0);
         }
@@ -107,25 +110,31 @@ class NightMaterialTexture:
         };
 
         uniform bool bool_lighting;
+        uniform bool bool_shadows;
         uniform vec3 view_pos;
-        uniform sampler2D texture;
-        
+        // named texture_diffuse: "texture" would shadow the glsl builtin
+        uniform sampler2D texture_diffuse;
+        uniform sampler2D shadow_map;
+        uniform float shadow_bias;
+
         uniform LightDirectional light_directional;
         uniform Material material;
-        
+
         in vec3 color;
         in vec3 normal;
         in vec3 frag_pos;
+        in vec4 frag_pos_light;
         in vec2 uv;
         out vec4 frag_color;
 
         // prototypes
         vec3 CalcLightDir(LightDirectional light, vec3 normal, vec3 view_dir);
-        
+        float CalcShadow(vec3 normal, vec3 light_dir);
+
         void main() {
-        
+
           vec3 result;
-        
+
           if (bool_lighting) {
             vec3 norm = normalize(normal);
             vec3 view_dir = normalize(view_pos - frag_pos);
@@ -133,20 +142,41 @@ class NightMaterialTexture:
           } else {
             result = color;
           }
-          frag_color = vec4(result, 1.0) * texture2D(texture, uv);
+          frag_color = vec4(result, 1.0) * texture(texture_diffuse, uv);
         }
 
         vec3 CalcLightDir(LightDirectional light, vec3 normal, vec3 view_dir) {
           vec3 light_dir = normalize(-light.direction);
           float diff = max(dot(normal, light_dir), 0.0);
-          vec3 reflect_dir = reflect(-light_dir, normal);
-          float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
+          // blinn-phong specular (softer highlights than plain phong)
+          vec3 halfway_dir = normalize(light_dir + view_dir);
+          float spec = pow(max(dot(normal, halfway_dir), 0.0), material.shininess);
 
           vec3 ambient = light.ambient * material.ambient;
           vec3 diffuse = light.diffuse * diff * material.diffuse;
           vec3 specular = light.specular * spec * material.specular;
 
-          return (ambient + diffuse + specular) * color;
+          float shadow = CalcShadow(normal, light_dir);
+          return (ambient + (1.0 - shadow) * (diffuse + specular)) * color;
+        }
+
+        float CalcShadow(vec3 normal, vec3 light_dir) {
+          if (!bool_shadows) return 0.0;
+          vec3 proj = frag_pos_light.xyz / frag_pos_light.w;
+          proj = proj * 0.5 + 0.5;
+          if (proj.z > 1.0) return 0.0;
+          // slope-scaled bias against shadow acne
+          float bias = max(shadow_bias * 4.0 * (1.0 - dot(normal, light_dir)), shadow_bias);
+          // 3x3 pcf for soft edges
+          float shadow = 0.0;
+          vec2 texel = 1.0 / vec2(textureSize(shadow_map, 0));
+          for (int x = -1; x <= 1; ++x) {
+            for (int y = -1; y <= 1; ++y) {
+              float closest = texture(shadow_map, proj.xy + vec2(x, y) * texel).r;
+              shadow += (proj.z - bias > closest) ? 1.0 : 0.0;
+            }
+          }
+          return shadow / 9.0;
         }
         """
         
