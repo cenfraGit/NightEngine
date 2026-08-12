@@ -91,18 +91,26 @@ class Example(NightBase):
 
         # -------------- vision cameras -------------- #
 
-        # camera 0: top-down inspection camera over the belt center
+        # camera 0: top-down inspection camera over the belt center.
+        # show_body draws the housing + view frustum in the main view;
+        # each camera hides its own gizmos while it captures.
         self.add_vision_camera(name="top",
                                position=[0, 18, 0],
                                target=[0, 0, 0],
                                resolution=(640, 480),
-                               fov=50)
+                               fov=50,
+                               show_body=True,
+                               body_color=[0.9, 0.9, 0.2],
+                               frustum_depth=18)
         # camera 1: angled side camera
         self.add_vision_camera(name="side",
                                position=[14, 6, 16],
                                target=[0, 1.5, 0],
                                resolution=(640, 480),
-                               fov=60)
+                               fov=60,
+                               show_body=True,
+                               body_color=[0.2, 0.9, 0.9],
+                               frustum_depth=14)
 
         # --------------- vision server --------------- #
 

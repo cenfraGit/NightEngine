@@ -19,12 +19,17 @@
 # bottom), ready for numpy/opencv.
 
 from NightEngine.NightCamera import NightCamera
+from NightEngine.Objects.NightObject import NightObject
+from NightEngine.Materials.NightMaterialDefault import NightMaterialDefault
+from NightEngine.Meshes.NightMesh import NightMesh
+from NightEngine.Meshes.MeshBox import MeshBox
 from OpenGL.GL import *
 import numpy as np
 import threading
 import socket
 import queue
 import json
+import math
 
 
 class NightVisionCamera:
@@ -42,6 +47,11 @@ class NightVisionCamera:
                                   aspect_ratio=width / height,
                                   near=near,
                                   far=far)
+
+        # visual gizmos (housing + frustum) parented to the camera
+        # transform. hidden while this camera renders so it never
+        # photographs itself.
+        self.body_objects = []
 
         # ------------------------------------------------------------
         # offscreen framebuffer (color + depth renderbuffers)
@@ -66,20 +76,94 @@ class NightVisionCamera:
             raise Exception("NightVisionCamera: framebuffer incomplete.")
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
+    # ------------------------------------------------------------
+    # visual body (so the camera is visible in the main view)
+    # ------------------------------------------------------------
+
+    def build_body(self, color=[0.85, 0.85, 0.2], scale=1.0, frustum_depth=6.0):
+        """creates a housing box and a wireframe view frustum, parented
+        to this camera's transform so they follow it. the frustum is
+        built from the fov at call time; call again after changing fov."""
+
+        # ---------------- housing ---------------- #
+
+        housing = NightObject(MeshBox(0.7 * scale, 0.7 * scale, 1.1 * scale,
+                                      color=color, collision=False),
+                              NightMaterialDefault(), 0)
+        # sit the body behind the lens origin (the camera looks down +z)
+        housing.set_position([0, 0, -0.55 * scale])
+
+        # ---------------- frustum ---------------- #
+
+        half_h = math.tan(math.radians(self.camera.fov) / 2.0) * frustum_depth
+        half_w = half_h * (self.width / self.height)
+        d = frustum_depth
+        corners = [[-half_w, -half_h, d], [half_w, -half_h, d],
+                   [half_w, half_h, d], [-half_w, half_h, d]]
+        origin = [0.0, 0.0, 0.0]
+
+        positions = []
+        for c in corners:                       # rays from the lens
+            positions += [origin, c]
+        for i in range(4):                      # rectangle at the far end
+            positions += [corners[i], corners[(i + 1) % 4]]
+
+        mesh = NightMesh()
+        mesh.add_attribute("vertex_position", "vec3", positions)
+        mesh.add_attribute("vertex_color", "vec3", [color] * len(positions))
+        mesh.vertex_count = len(positions)
+
+        frustum = NightObject(mesh,
+                              NightMaterialDefault(gl_draw_style=GL_LINES,
+                                                   gl_line_width=1,
+                                                   gl_culling=False,
+                                                   lighting=False), 0)
+
+        for obj in (housing, frustum):
+            obj.cast_shadow = False             # gizmos must not shadow the scene
+            self.camera.add(obj)
+            self.body_objects.append(obj)
+
+        return self.body_objects
+
     def capture(self, engine):
         """renders the scene from this camera and reads the pixels
         back. must run on the render (main) thread."""
-        engine.draw_scene(self.camera,
-                          width=self.width,
-                          height=self.height,
-                          framebuffer=self.fbo)
-        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
-        glPixelStorei(GL_PACK_ALIGNMENT, 1)
-        data = glReadPixels(0, 0, self.width, self.height,
-                            GL_BGR, GL_UNSIGNED_BYTE)
-        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+        # a camera must not appear in its own image
+        hidden = [o for o in self.body_objects if o.visible]
+        for obj in hidden:
+            obj.visible = False
+        try:
+            engine.draw_scene(self.camera,
+                              width=self.width,
+                              height=self.height,
+                              framebuffer=self.fbo)
+            glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
+            glPixelStorei(GL_PACK_ALIGNMENT, 1)
+            data = glReadPixels(0, 0, self.width, self.height,
+                                GL_BGR, GL_UNSIGNED_BYTE)
+            glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        finally:
+            for obj in hidden:
+                obj.visible = True
+
         frame = np.frombuffer(data, dtype=np.uint8).reshape(self.height, self.width, 3)
         return np.ascontiguousarray(np.flipud(frame))  # gl rows are bottom-up
+
+    # ------------------------------------------------------------
+    # pixel format conversion (for transports that need mono/rgb)
+    # ------------------------------------------------------------
+
+    @staticmethod
+    def to_mono8(frame_bgr):
+        """bgr8 -> mono8 using itu-r 601 luma weights."""
+        w = np.array([0.114, 0.587, 0.299], dtype=np.float32)   # b, g, r
+        return (frame_bgr.astype(np.float32) @ w).astype(np.uint8)
+
+    @staticmethod
+    def to_rgb8(frame_bgr):
+        return np.ascontiguousarray(frame_bgr[:, :, ::-1])
 
 
 class NightVisionServer:

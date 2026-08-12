@@ -108,6 +108,7 @@ class NightBase:
 
         self.vision_cameras = []
         self.vision_server = None
+        self.gige_server = None
 
         # ------------------------------------------------------------
         # init pybullet
@@ -187,6 +188,8 @@ class NightBase:
             # the gl thread)
             if self.vision_server:
                 self.vision_server.process()
+            if self.gige_server:
+                self.gige_server.process()
             # draw
             glfw.swap_buffers(self.window)
 
@@ -386,17 +389,30 @@ class NightBase:
     # ------------------------------------------------------------
 
     def add_vision_camera(self, name=None, position=[0, 10, 10], target=[0, 0, 0],
-                          resolution=(640, 480), fov=60.0, near=0.1, far=1000.0):
+                          resolution=(640, 480), fov=60.0, near=0.1, far=1000.0,
+                          show_body=False, body_color=[0.85, 0.85, 0.2],
+                          body_scale=1.0, frustum_depth=6.0):
         """adds an offscreen inspection camera. returns the
         NightVisionCamera; its index (for the protocol) is the order
         of creation. attach vision_camera.camera to an object with
-        obj.add(...) for a moving camera."""
+        obj.add(...) for a moving camera.
+
+        show_body draws a housing + wireframe frustum at the camera's
+        pose so the camera is visible in the main view. the gizmos are
+        hidden while that camera captures, so it never sees itself."""
         index = len(self.vision_cameras)
         vision_camera = NightVisionCamera(name=name if name else f"camera{index}",
                                           width=resolution[0],
                                           height=resolution[1],
                                           fov=fov, near=near, far=far)
         vision_camera.camera.look_at(position=position, target=target)
+        if show_body:
+            vision_camera.build_body(color=body_color, scale=body_scale,
+                                     frustum_depth=frustum_depth)
+            # the gizmos only render if the camera node is in the scene
+            # graph; leave an already-attached camera where it is
+            if vision_camera.camera.parent is None:
+                self._scene.add(vision_camera.camera)
         self.vision_cameras.append(vision_camera)
         return vision_camera
 
@@ -405,6 +421,29 @@ class NightBase:
         scripts etc.) capture frames from the vision cameras."""
         self.vision_server = NightVisionServer(self, host, port)
         return self.vision_server
+
+    def start_gige_server(self, devices, bind_broadcast=True, verbose=True,
+                          bind_any=False):
+        """exposes vision cameras as GigE Vision devices, discoverable by
+        any standard consumer (HALCON, pylon Viewer, eBUS Player, Aravis).
+
+        each entry in `devices` is a dict of NightGigEDevice arguments,
+        e.g. {"camera": cam0, "ip": "169.254.5.60",
+              "mac": "02:00:00:05:00:3c", "model": "NightEngineCam",
+              "serial": "NE0001", "pixel_format": "Mono8"}
+
+        the standard fixes the control port at 3956, so every device
+        needs its own local IP address.
+
+        bind_any binds 0.0.0.0:3956 instead of the device address, as a
+        fallback if a consumer's discovery broadcast never reaches us.
+        single device only."""
+        from NightEngine.GigE.server import NightGigEServer
+        self.gige_server = NightGigEServer(self, devices=devices,
+                                           bind_broadcast=bind_broadcast,
+                                           verbose=verbose,
+                                           bind_any=bind_any)
+        return self.gige_server
 
     def vision_trigger(self, name, value):
         """override to implement custom vision-triggered behavior
