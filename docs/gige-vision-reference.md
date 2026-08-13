@@ -203,6 +203,55 @@ CVB quotes and 30× Aravis's fake camera, which HALCON rejects. Ours is delibera
 
 ---
 
+## ⚠️ Never expose half of a selector-governed feature group
+
+Several SFNC feature groups are governed by a **selector**: you write the selector first to choose
+*which* trigger / gain / exposure you are configuring, then the other features apply to that
+selection. We originally exposed `TriggerMode` and `TriggerSoftware` **without `TriggerSelector`**.
+HALCON itself was fine, but a client application following the standard pattern —
+`TriggerSelector = FrameStart`, then `TriggerMode = On` — failed at the first step because the
+selector did not exist.
+
+**Omitting a whole group is safe. Exposing part of one is not**, because the presence of
+`TriggerMode` advertises "this camera has triggers" and invites the standard walk.
+
+The groups currently exposed, kept complete:
+
+| Governing feature | Members |
+|---|---|
+| `TriggerSelector` | `TriggerMode`, `TriggerSource`, `TriggerActivation`, `TriggerDelay`, `TriggerSoftware` |
+| `GainSelector` | `Gain`, `GainAuto` |
+| `ExposureMode` | `ExposureTime`, `ExposureAuto` |
+
+`tests/test_gige_device.py::test_no_partial_selector_groups_in_the_xml` enforces this: if any
+member of a group appears without its governor, the test fails.
+
+Only advertise enum entries you actually implement. Our `TriggerSelector` offers `FrameStart`
+alone, because that is the only trigger the device really honours.
+
+**EnumEntry names are scoped to their enumeration** and legitimately collide with feature names —
+the Genie Nano has a `Command` named `AcquisitionStart` *and* five `EnumEntry` nodes of the same
+name. Don't flatten all `Name` attributes into one namespace when analysing an XML.
+
+## A GigE device is visible to the whole broadcast domain
+
+This is normal protocol behaviour, not a bug, and it is worth planning for. Discovery is a UDP
+broadcast, so **every GigE Vision consumer on the same LAN segment sees the device** — Sapera
+CamExpert, pylon Viewer, eBUS Player, any colleague's inspection app. Running the emulator on a
+production office network means:
+
+- Everyone running vendor camera software gets a new-device notification.
+- Any of them can take control (CCP), which locks out everyone else until the heartbeat lapses.
+- A colleague's application could try to open it and be confused by a phantom camera.
+- The advertised IP must not collide with anything real on that network.
+
+Prefer an isolated link — a direct cable or a dedicated switch/VLAN between the emulator and the
+consumer. That is also the configuration that avoids the same-host filter-driver problem.
+
+**The emulator's own machine is the one that cannot use the device.** Client and device on one
+host is the documented-bad configuration (see the top of this file), so expect every *other*
+machine on the segment to work while the host running the emulator does not.
+
 ## Debugging checklist
 
 Ordered by likelihood for this project.

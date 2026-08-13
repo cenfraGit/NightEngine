@@ -1,0 +1,87 @@
+* ------------------------------------------------------------------
+* NightEngine emulated hardware trigger -- Line2 test
+*
+* Paste into a new HDevelop program and run it against
+*   python hardware_trigger.py --ip <your address>
+*
+* Set DeviceName below to the "device name" the example prints at
+* startup. The whole point of this script is that a failure tells you
+* WHICH thing failed, so it checks three separate claims:
+*   1. the trigger configuration is accepted AND reads back
+*   2. nothing arrives while the line is idle (i.e. not free-running)
+*   3. exactly one frame arrives per press of T
+* ------------------------------------------------------------------
+
+dev_update_off ()
+dev_close_window ()
+dev_open_window (0, 0, 640, 480, 'black', WindowHandle)
+set_display_font (WindowHandle, 14, 'mono', 'true', 'false')
+
+DeviceName := '02007f000001_NightEngine_NightEngineCam'
+
+open_framegrabber ('GigEVision2', 0, 0, 0, 0, 0, 0, 'default', -1, 'default', \
+                   'default', 'false', 'default', DeviceName, 0, -1, AcqHandle)
+
+* --- 1. configure a hardware trigger on Line2 ---------------------
+set_framegrabber_param (AcqHandle, 'TriggerSelector', 'FrameStart')
+set_framegrabber_param (AcqHandle, 'TriggerMode', 'On')
+set_framegrabber_param (AcqHandle, 'TriggerSource', 'Line2')
+set_framegrabber_param (AcqHandle, 'TriggerActivation', 'RisingEdge')
+
+* read it back: proves the writes LANDED, not merely that they returned
+* without an error
+get_framegrabber_param (AcqHandle, 'TriggerMode', CheckMode)
+get_framegrabber_param (AcqHandle, 'TriggerSource', CheckSource)
+ConfigResult := 'config: TriggerMode=' + CheckMode + ' TriggerSource=' + CheckSource
+if (CheckMode != 'On' or CheckSource != 'Line2')
+    ConfigResult := 'FAIL - ' + ConfigResult
+endif
+dev_disp_text (ConfigResult, 'window', 12, 12, 'black', [], [])
+
+* --- 2. nothing may arrive while the line is idle ------------------
+* a frame here means the camera is free-running and the trigger
+* configuration never took effect
+set_framegrabber_param (AcqHandle, 'grab_timeout', 2000)
+IdleResult := 'FAIL - a frame arrived with no trigger (free-running)'
+try
+    grab_image (Image, AcqHandle)
+catch (Exception)
+    IdleResult := 'PASS - silent until triggered'
+endtry
+dev_disp_text (IdleResult, 'window', 36, 12, 'black', [], [])
+
+* --- 3. one press of T, one frame ---------------------------------
+* switch to the NightEngine window and press T once per frame
+set_framegrabber_param (AcqHandle, 'grab_timeout', 30000)
+Received := 0
+for Index := 1 to 5 by 1
+    try
+        grab_image (Image, AcqHandle)
+        Received := Received + 1
+        dev_display (Image)
+        dev_disp_text ('frame ' + Received + '/5 -- press T again', \
+                       'window', 12, 12, 'black', [], [])
+    catch (Exception)
+        break
+    endtry
+endfor
+
+Verdict := IdleResult + ' | frames received: ' + Received + '/5'
+dev_disp_text (Verdict, 'window', 36, 12, 'black', [], [])
+stop ()
+
+close_framegrabber (AcqHandle)
+
+* ------------------------------------------------------------------
+* Expected: 'PASS - silent until triggered | frames received: 5/5',
+* and each displayed frame shows the belt parts further along than the
+* last -- two identical frames would mean a stale buffer rather than a
+* fresh capture.
+*
+* Two things to adjust for your installation, which cannot be verified
+* from outside HALCON:
+*   - the interface name 'GigEVision2' must match the acquisition
+*     interface you have installed (older setups use 'GigEVision')
+*   - 'grab_timeout' is a set_framegrabber_param in current HALCON, but
+*     was an open_framegrabber argument in older versions
+* ------------------------------------------------------------------

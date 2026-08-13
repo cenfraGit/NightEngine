@@ -146,7 +146,27 @@ def build_xml(vendor="NightEngine", model="NightEngineCam",
       <pFeature>DeviceControl</pFeature>
       <pFeature>ImageFormatControl</pFeature>
       <pFeature>AcquisitionControl</pFeature>
+      <pFeature>DigitalIOControl</pFeature>
+      <pFeature>TransferControl</pFeature>
       <pFeature>TransportLayerControl</pFeature>
+   </Category>
+   <Category Name="DigitalIOControl" NameSpace="Standard">
+      <Visibility>Expert</Visibility>
+      <pFeature>LineSelector</pFeature>
+      <pFeature>LineMode</pFeature>
+      <pFeature>LineFormat</pFeature>
+      <pFeature>LineInverter</pFeature>
+      <pFeature>LineStatus</pFeature>
+      <pFeature>LineStatusAll</pFeature>
+   </Category>
+   <Category Name="TransferControl" NameSpace="Standard">
+      <Visibility>Expert</Visibility>
+      <pFeature>TransferControlMode</pFeature>
+      <pFeature>TransferBlockCount</pFeature>
+      <pFeature>TransferQueueCurrentBlockCount</pFeature>
+      <pFeature>TransferStart</pFeature>
+      <pFeature>TransferStop</pFeature>
+      <pFeature>TransferAbort</pFeature>
    </Category>
    <Category Name="DeviceControl" NameSpace="Standard">
       <Visibility>Beginner</Visibility>
@@ -178,9 +198,17 @@ def build_xml(vendor="NightEngine", model="NightEngineCam",
       <pFeature>AcquisitionStart</pFeature>
       <pFeature>AcquisitionStop</pFeature>
       <pFeature>AcquisitionFrameRate</pFeature>
+      <pFeature>ExposureMode</pFeature>
+      <pFeature>ExposureAuto</pFeature>
       <pFeature>ExposureTime</pFeature>
+      <pFeature>GainSelector</pFeature>
+      <pFeature>GainAuto</pFeature>
       <pFeature>Gain</pFeature>
+      <pFeature>TriggerSelector</pFeature>
       <pFeature>TriggerMode</pFeature>
+      <pFeature>TriggerSource</pFeature>
+      <pFeature>TriggerActivation</pFeature>
+      <pFeature>TriggerDelay</pFeature>
       <pFeature>TriggerSoftware</pFeature>
    </Category>
    <Category Name="TransportLayerControl" NameSpace="Standard">
@@ -315,6 +343,139 @@ def build_xml(vendor="NightEngine", model="NightEngineCam",
     parts.append(_int_reg("GainReg", R.REG_GAIN_RAW))
     parts.append(_int_reg("TriggerModeReg", R.REG_TRIGGER_MODE))
     parts.append(_int_reg("TriggerSoftwareReg", R.REG_TRIGGER_SOFTWARE, "WO"))
+    parts.append(_int_reg("TriggerSelectorReg", R.REG_TRIGGER_SELECTOR))
+    parts.append(_int_reg("TriggerSourceReg", R.REG_TRIGGER_SOURCE))
+    parts.append(_int_reg("TriggerActivationReg", R.REG_TRIGGER_ACTIVATION))
+    parts.append(_int_reg("TriggerDelayReg", R.REG_TRIGGER_DELAY_US))
+    parts.append(_int_reg("GainSelectorReg", R.REG_GAIN_SELECTOR))
+    parts.append(_int_reg("GainAutoReg", R.REG_GAIN_AUTO))
+    parts.append(_int_reg("ExposureModeReg", R.REG_EXPOSURE_MODE))
+    parts.append(_int_reg("ExposureAutoReg", R.REG_EXPOSURE_AUTO))
+
+    # --------------------- digital i/o lines --------------------- #
+
+    # LineMode/LineInverter/LineStatus are single addresses that the
+    # device resolves against LineSelector, which is how real hardware
+    # exposes per-line features without burning a register on each.
+    parts.append(_int_reg("LineSelectorReg", R.REG_LINE_SELECTOR))
+    parts.append(_int_reg("LineModeReg", R.REG_LINE_MODE))
+    parts.append(_int_reg("LineInverterReg", R.REG_LINE_INVERTER))
+    parts.append(_int_reg("LineStatusReg", R.REG_LINE_STATUS, "RO"))
+    parts.append(_int_reg("LineStatusAllReg", R.REG_LINE_STATUS_ALL, "RO"))
+
+    line_entries = "".join(
+        f"""      <EnumEntry Name="Line{index}" NameSpace="Standard">
+         <Value>{index}</Value>
+      </EnumEntry>\n""" for index in range(1, R.LINE_COUNT + 1))
+
+    parts.append(f"""   <Enumeration Name="LineSelector" NameSpace="Standard">
+      <ToolTip>Selects the line the line features configure</ToolTip>
+      <Visibility>Expert</Visibility>
+{line_entries}      <pValue>LineSelectorReg</pValue>
+   </Enumeration>
+   <Enumeration Name="LineMode" NameSpace="Standard">
+      <ToolTip>Direction of the selected line</ToolTip>
+      <Visibility>Expert</Visibility>
+      <EnumEntry Name="Input" NameSpace="Standard">
+         <Value>{R.LINE_INPUT}</Value>
+      </EnumEntry>
+      <EnumEntry Name="Output" NameSpace="Standard">
+         <Value>{R.LINE_OUTPUT}</Value>
+      </EnumEntry>
+      <pValue>LineModeReg</pValue>
+   </Enumeration>
+   <Enumeration Name="LineFormat" NameSpace="Standard">
+      <ToolTip>Electrical format of the selected line</ToolTip>
+      <Visibility>Expert</Visibility>
+      <EnumEntry Name="OptoCoupled" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <pValue>LineFormatReg</pValue>
+   </Enumeration>
+   <Boolean Name="LineInverter" NameSpace="Standard">
+      <ToolTip>Inverts the signal of the selected line</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>LineInverterReg</pValue>
+      <OnValue>1</OnValue>
+      <OffValue>0</OffValue>
+   </Boolean>
+   <Boolean Name="LineStatus" NameSpace="Standard">
+      <ToolTip>Current level of the selected line, after LineInverter</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>LineStatusReg</pValue>
+      <OnValue>1</OnValue>
+      <OffValue>0</OffValue>
+   </Boolean>
+   <Integer Name="LineStatusAll" NameSpace="Standard">
+      <ToolTip>Levels of all lines as a bit field, Line1 in bit 0</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>LineStatusAllReg</pValue>
+   </Integer>
+""")
+
+    # LineFormat is fixed: every line is opto-coupled, so it reads back a
+    # constant rather than occupying a register.
+    parts.append("""   <IntSwissKnife Name="LineFormatReg">
+      <pVariable Name="ZERO">LineSelectorReg</pVariable>
+      <Formula>ZERO * 0</Formula>
+   </IntSwissKnife>
+""")
+
+    # ---------------------- transfer control ---------------------- #
+
+    parts.append(_int_reg("TransferControlModeReg", R.REG_TRANSFER_CONTROL_MODE))
+    parts.append(_int_reg("TransferBlockCountReg", R.REG_TRANSFER_BLOCK_COUNT))
+    parts.append(_int_reg("TransferQueueCountReg", R.REG_TRANSFER_QUEUE_COUNT, "RO"))
+    parts.append(_int_reg("TransferStartReg", R.REG_TRANSFER_START, "WO"))
+    parts.append(_int_reg("TransferStopReg", R.REG_TRANSFER_STOP, "WO"))
+    parts.append(_int_reg("TransferAbortReg", R.REG_TRANSFER_ABORT, "WO"))
+
+    parts.append("""   <Enumeration Name="TransferControlMode" NameSpace="Standard">
+      <ToolTip>Selects the control method for the transfer of blocks</ToolTip>
+      <Visibility>Expert</Visibility>
+      <EnumEntry Name="Basic" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <EnumEntry Name="Automatic" NameSpace="Standard">
+         <Value>1</Value>
+      </EnumEntry>
+      <EnumEntry Name="UserControlled" NameSpace="Standard">
+         <Value>2</Value>
+      </EnumEntry>
+      <pValue>TransferControlModeReg</pValue>
+   </Enumeration>
+   <Integer Name="TransferBlockCount" NameSpace="Standard">
+      <ToolTip>Blocks released by one TransferStart under UserControlled</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>TransferBlockCountReg</pValue>
+      <Min>1</Min>
+      <Max>65535</Max>
+      <Inc>1</Inc>
+   </Integer>
+   <Integer Name="TransferQueueCurrentBlockCount" NameSpace="Standard">
+      <ToolTip>Blocks currently waiting in the device</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>TransferQueueCountReg</pValue>
+   </Integer>
+   <Command Name="TransferStart" NameSpace="Standard">
+      <ToolTip>Starts the transfer of blocks held in the device</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>TransferStartReg</pValue>
+      <CommandValue>1</CommandValue>
+   </Command>
+   <Command Name="TransferStop" NameSpace="Standard">
+      <ToolTip>Stops the transfer, holding further blocks in the device</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>TransferStopReg</pValue>
+      <CommandValue>1</CommandValue>
+   </Command>
+   <Command Name="TransferAbort" NameSpace="Standard">
+      <ToolTip>Aborts the transfer and discards the blocks held in the device</ToolTip>
+      <Visibility>Expert</Visibility>
+      <pValue>TransferAbortReg</pValue>
+      <CommandValue>1</CommandValue>
+   </Command>
+""")
 
     parts.append("""   <Enumeration Name="AcquisitionMode" NameSpace="Standard">
       <ToolTip>Acquisition mode of the device</ToolTip>
@@ -364,8 +525,48 @@ def build_xml(vendor="NightEngine", model="NightEngineCam",
       <pValue>GainReg</pValue>
       <Slope>Increasing</Slope>
    </Converter>
+   <Enumeration Name="ExposureMode" NameSpace="Standard">
+      <ToolTip>Operation mode of the exposure</ToolTip>
+      <Visibility>Beginner</Visibility>
+      <EnumEntry Name="Timed" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <pValue>ExposureModeReg</pValue>
+   </Enumeration>
+   <Enumeration Name="ExposureAuto" NameSpace="Standard">
+      <ToolTip>Automatic exposure control</ToolTip>
+      <Visibility>Beginner</Visibility>
+      <EnumEntry Name="Off" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <pValue>ExposureAutoReg</pValue>
+   </Enumeration>
+   <Enumeration Name="GainSelector" NameSpace="Standard">
+      <ToolTip>Selects which gain the Gain feature controls</ToolTip>
+      <Visibility>Expert</Visibility>
+      <EnumEntry Name="All" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <pValue>GainSelectorReg</pValue>
+   </Enumeration>
+   <Enumeration Name="GainAuto" NameSpace="Standard">
+      <ToolTip>Automatic gain control</ToolTip>
+      <Visibility>Beginner</Visibility>
+      <EnumEntry Name="Off" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <pValue>GainAutoReg</pValue>
+   </Enumeration>
+   <Enumeration Name="TriggerSelector" NameSpace="Standard">
+      <ToolTip>Selects which trigger the trigger features configure</ToolTip>
+      <Visibility>Beginner</Visibility>
+      <EnumEntry Name="FrameStart" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <pValue>TriggerSelectorReg</pValue>
+   </Enumeration>
    <Enumeration Name="TriggerMode" NameSpace="Standard">
-      <ToolTip>Controls whether the trigger is active</ToolTip>
+      <ToolTip>Controls whether the selected trigger is active</ToolTip>
       <Visibility>Beginner</Visibility>
       <EnumEntry Name="Off" NameSpace="Standard">
          <Value>0</Value>
@@ -375,8 +576,56 @@ def build_xml(vendor="NightEngine", model="NightEngineCam",
       </EnumEntry>
       <pValue>TriggerModeReg</pValue>
    </Enumeration>
+   <Enumeration Name="TriggerSource" NameSpace="Standard">
+      <ToolTip>Source signal for the selected trigger</ToolTip>
+      <Visibility>Beginner</Visibility>
+      <EnumEntry Name="Software" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <EnumEntry Name="Line1" NameSpace="Standard">
+         <Value>1</Value>
+      </EnumEntry>
+      <EnumEntry Name="Line2" NameSpace="Standard">
+         <Value>2</Value>
+      </EnumEntry>
+      <EnumEntry Name="Line3" NameSpace="Standard">
+         <Value>3</Value>
+      </EnumEntry>
+      <EnumEntry Name="Line4" NameSpace="Standard">
+         <Value>4</Value>
+      </EnumEntry>
+      <pValue>TriggerSourceReg</pValue>
+   </Enumeration>
+   <Enumeration Name="TriggerActivation" NameSpace="Standard">
+      <ToolTip>Activation mode of the trigger signal</ToolTip>
+      <Visibility>Expert</Visibility>
+      <EnumEntry Name="RisingEdge" NameSpace="Standard">
+         <Value>0</Value>
+      </EnumEntry>
+      <EnumEntry Name="FallingEdge" NameSpace="Standard">
+         <Value>1</Value>
+      </EnumEntry>
+      <EnumEntry Name="AnyEdge" NameSpace="Standard">
+         <Value>2</Value>
+      </EnumEntry>
+      <EnumEntry Name="LevelHigh" NameSpace="Standard">
+         <Value>3</Value>
+      </EnumEntry>
+      <EnumEntry Name="LevelLow" NameSpace="Standard">
+         <Value>4</Value>
+      </EnumEntry>
+      <pValue>TriggerActivationReg</pValue>
+   </Enumeration>
+   <Converter Name="TriggerDelay" NameSpace="Standard">
+      <ToolTip>Delay after the trigger before the frame starts, in microseconds</ToolTip>
+      <Visibility>Expert</Visibility>
+      <FormulaTo>FROM</FormulaTo>
+      <FormulaFrom>TO</FormulaFrom>
+      <pValue>TriggerDelayReg</pValue>
+      <Slope>Increasing</Slope>
+   </Converter>
    <Command Name="TriggerSoftware" NameSpace="Standard">
-      <ToolTip>Generates an internal trigger</ToolTip>
+      <ToolTip>Generates an internal trigger for the selected trigger</ToolTip>
       <Visibility>Beginner</Visibility>
       <pValue>TriggerSoftwareReg</pValue>
       <CommandValue>1</CommandValue>

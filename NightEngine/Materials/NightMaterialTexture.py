@@ -95,6 +95,8 @@ class NightMaterialTexture:
         code_shader_fragment = """
         #version 330 core
 
+        #define MAX_POINT_LIGHTS 8
+
         struct LightDirectional {
           vec3 direction;
           vec3 ambient;
@@ -125,7 +127,8 @@ class NightMaterialTexture:
         uniform float shadow_bias;
 
         uniform LightDirectional light_directional;
-        uniform LightPoint light_point;
+        uniform int point_light_count;
+        uniform LightPoint point_lights[MAX_POINT_LIGHTS];
         uniform Material material;
 
         in vec3 color;
@@ -137,7 +140,7 @@ class NightMaterialTexture:
 
         // prototypes
         vec3 CalcLightDir(LightDirectional light, vec3 normal, vec3 view_dir);
-        vec3 CalcLightPoint(vec3 normal, vec3 view_dir);
+        vec3 CalcLightPoint(LightPoint light, vec3 normal, vec3 view_dir);
         float CalcShadow(vec3 normal, vec3 light_dir);
 
         void main() {
@@ -148,23 +151,25 @@ class NightMaterialTexture:
             vec3 norm = normalize(normal);
             vec3 view_dir = normalize(view_pos - frag_pos);
             result = CalcLightDir(light_directional, norm, view_dir);
-            result += CalcLightPoint(norm, view_dir);
+            for (int i = 0; i < point_light_count && i < MAX_POINT_LIGHTS; ++i) {
+              result += CalcLightPoint(point_lights[i], norm, view_dir);
+            }
           } else {
             result = color;
           }
           frag_color = vec4(result, 1.0) * texture(texture_diffuse, uv);
         }
 
-        vec3 CalcLightPoint(vec3 normal, vec3 view_dir) {
-          vec3 to_light = light_point.position - frag_pos;
+        vec3 CalcLightPoint(LightPoint light, vec3 normal, vec3 view_dir) {
+          vec3 to_light = light.position - frag_pos;
           float dist = length(to_light);
           vec3 light_dir = to_light / max(dist, 0.0001);
           float diff = max(dot(normal, light_dir), 0.0);
           vec3 halfway_dir = normalize(light_dir + view_dir);
           float spec = pow(max(dot(normal, halfway_dir), 0.0), material.shininess);
-          float attenuation = 1.0 / (1.0 + light_point.attenuation_linear * dist
-                                         + light_point.attenuation_quadratic * dist * dist);
-          return attenuation * light_point.color
+          float attenuation = 1.0 / (1.0 + light.attenuation_linear * dist
+                                         + light.attenuation_quadratic * dist * dist);
+          return attenuation * light.color
                  * (diff * material.diffuse + spec * material.specular) * color;
         }
 

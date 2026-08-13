@@ -319,6 +319,111 @@ def test_genapi_xml_is_fetchable_and_wellformed():
         h.close()
 
 
+def test_no_partial_selector_groups_in_the_xml():
+    """SFNC trigger/gain/exposure features are selector-governed. Exposing
+    TriggerMode without TriggerSelector makes a standards-following client
+    fail on the selector write it performs first -- which is exactly what
+    happened in the field. Omitting a whole group is safe; exposing half
+    of one is not."""
+    h, c = Harness(), None
+    try:
+        c = Client(DEVICE_IP)
+        c.write_reg(R.CCP, 1)
+        xml_text, _name, _length = c.fetch_xml()
+        names = {e.get("Name") for e in ET.fromstring(xml_text).iter()
+                 if e.get("Name")}
+
+        groups = {
+            "TriggerSelector": ["TriggerMode", "TriggerSource",
+                                "TriggerActivation", "TriggerSoftware"],
+            "GainSelector": ["Gain", "GainAuto"],
+            "ExposureMode": ["ExposureTime", "ExposureAuto"],
+            # LineSelector governs its group exactly as TriggerSelector
+            # does: exposing LineInverter without it strands a client that
+            # writes the selector first.
+            "LineSelector": ["LineMode", "LineFormat", "LineInverter",
+                             "LineStatus"],
+        }
+        for governor, members in groups.items():
+            present = [m for m in members if m in names]
+            if present:
+                assert governor in names, (
+                    f"{present} exposed without its governing feature "
+                    f"'{governor}'; a client that writes the selector first "
+                    f"will fail")
+
+        # and the full trigger group should resolve to real registers
+        for feature in ("TriggerSelector", "TriggerMode", "TriggerSource",
+                        "TriggerActivation", "TriggerSoftware", "TriggerDelay",
+                        "GainSelector", "GainAuto", "ExposureMode",
+                        "ExposureAuto", "TransferControlMode",
+                        "TransferBlockCount", "TransferStart", "TransferStop",
+                        "TransferAbort", "LineSelector", "LineMode",
+                        "LineFormat", "LineInverter", "LineStatus",
+                        "LineStatusAll"):
+            assert feature in names, f"missing {feature}"
+
+        # every entry the customer's production script selects by name
+        # must exist, or the corresponding set_framegrabber_param fails
+        root = ET.fromstring(xml_text)
+        for feature, wanted in (("TriggerSource", {"Software", "Line1", "Line2"}),
+                                ("TriggerActivation", {"RisingEdge", "FallingEdge",
+                                                       "AnyEdge", "LevelHigh",
+                                                       "LevelLow"}),
+                                ("TransferControlMode", {"Basic", "Automatic",
+                                                         "UserControlled"}),
+                                ("LineSelector", {"Line1", "Line2"})):
+            node = next(e for e in root.iter()
+                        if e.tag.endswith("Enumeration") and e.get("Name") == feature)
+            have = {c.get("Name") for c in node
+                    if c.tag.endswith("EnumEntry")}
+            assert wanted <= have, f"{feature} missing {wanted - have}"
+    finally:
+        if c:
+            c.close()
+        h.close()
+
+
+def test_triggered_mode_emits_only_on_software_trigger():
+    h, c = Harness(), None
+    try:
+        c = Client(DEVICE_IP)
+        c.write_reg(R.CCP, 1)
+        c.write_reg(R.SCDA, R.ip_to_u32(DEVICE_IP))
+        c.write_reg(R.SCP, c.stream_port)
+        c.write_reg(R.REG_TRIGGER_SELECTOR, 0)      # FrameStart
+        c.write_reg(R.REG_TRIGGER_SOURCE, 0)        # Software
+        c.write_reg(R.REG_TRIGGER_MODE, 1)          # On
+        c.write_reg(R.REG_FRAME_PERIOD_US, 10000)   # would be 100 fps free-running
+        c.write_reg(R.REG_ACQUISITION_COMMAND, 1)
+
+        # nothing should arrive without a trigger
+        c.stream.settimeout(1.0)
+        try:
+            c.receive_frame(timeout=1.0)
+            assert False, "a frame arrived with TriggerMode On and no trigger"
+        except TimeoutError:
+            pass
+
+        c.stream.settimeout(5.0)
+        c.write_reg(R.REG_TRIGGER_SOFTWARE, 1)
+        leader, payload, _size_y, _pid = c.receive_frame()
+        assert len(payload) == WIDTH * HEIGHT
+
+        # and exactly one frame per trigger
+        try:
+            c.receive_frame(timeout=1.0)
+            assert False, "a second frame arrived from a single trigger"
+        except TimeoutError:
+            pass
+
+        c.write_reg(R.REG_ACQUISITION_COMMAND, 0)
+    finally:
+        if c:
+            c.close()
+        h.close()
+
+
 def test_fire_test_packet_returns_one_datagram_of_requested_size():
     h, c = Harness(), None
     try:
@@ -349,7 +454,13 @@ def test_streams_a_frame_matching_the_rendered_source():
         # drive acquisition through the address our own XML advertises,
         # which validates the xml <-> register wiring
         root = ET.fromstring(xml_text)
-        by_name = {e.get("Name"): e for e in root.iter() if e.get("Name")}
+        # EnumEntry names are scoped to their enumeration and legitimately
+        # collide with feature names (the Genie Nano has a Command and five
+        # EnumEntry nodes all called AcquisitionStart), so index only
+        # feature-level nodes here
+        by_name = {e.get("Name"): e for e in root.iter()
+                   if e.get("Name") and not e.tag.endswith(("EnumEntry",
+                                                            "StructEntry"))}
         start = by_name["AcquisitionStart"]
         reg_name = start.find(f"{NS}pValue").text
         command_value = int(start.find(f"{NS}CommandValue").text)
@@ -464,6 +575,65 @@ def test_bind_any_fallback_serves_discovery_and_streaming():
         h.close()
 
 
+def test_multiple_devices_in_one_process_are_independent():
+    """N cameras need N local IPs (the standard fixes the control port at
+    3956), but they are hosted by a single process and a single render
+    thread. Uses loopback aliases 127.0.0.x, which Windows and Linux both
+    route locally."""
+    ips = ["127.0.0.1", "127.0.0.2", "127.0.0.3"]
+    devices = [NightGigEDevice(camera=StubCamera(name=f"cam{i}"), ip=ip,
+                               mac=f"02:00:00:00:00:{i + 1:02x}",
+                               subnet_mask="255.0.0.0",
+                               serial=f"NE{i:08d}", user_name=f"cam{i}")
+               for i, ip in enumerate(ips)]
+    server = NightGigEServer(None, devices=devices, bind_broadcast=False,
+                             verbose=False)
+    running = True
+
+    def render_loop():
+        while running:
+            server.process()
+            time.sleep(0.005)
+
+    thread = threading.Thread(target=render_loop, daemon=True)
+    thread.start()
+    clients = []
+    try:
+        for index, ip in enumerate(ips):
+            client = Client(ip)
+            clients.append(client)
+            data = client.discover()
+            # distinct serial / name / MAC, or consumers collapse them
+            serial = data[216:232].split(b"\x00")[0].decode()
+            name = data[232:248].split(b"\x00")[0].decode()
+            assert serial == f"NE{index:08d}", f"{ip}: serial {serial!r}"
+            assert name == f"cam{index}", f"{ip}: user name {name!r}"
+            assert data[15] == index + 1, f"{ip}: MAC low byte {data[15]}"
+
+        for client in clients:
+            client.write_reg(R.CCP, 1)
+            client.write_reg(R.SCDA, R.ip_to_u32(client.device[0]))
+            client.write_reg(R.SCP, client.stream_port)
+            client.write_reg(R.REG_ACQUISITION_COMMAND, 1)
+
+        for client in clients:
+            leader, payload, _size_y, _pid = client.receive_frame(timeout=8)
+            assert len(payload) == WIDTH * HEIGHT
+
+        for client in clients:
+            client.write_reg(R.REG_ACQUISITION_COMMAND, 0)
+
+        # control of one device must not disturb another
+        clients[0].write_reg(R.CCP, 0)
+        assert clients[1].read_reg(R.CCP) == 1
+    finally:
+        running = False
+        thread.join(timeout=1.0)
+        for client in clients:
+            client.close()
+        server.close()
+
+
 def test_bind_any_rejects_a_second_device():
     h = Harness(bind_any=True)
     try:
@@ -476,6 +646,337 @@ def test_bind_any_rejects_a_second_device():
             assert "single device" in str(e)
     finally:
         h.close()
+
+
+def test_line_trigger_needs_a_real_edge_on_the_configured_line():
+    """the whole point of the line model: with TriggerSource Line2 the
+    device must wait for Line2, must NOT fall back to free-running, and
+    must NOT answer TriggerSoftware. That last one is the fidelity bug the
+    line model exists to fix -- the trigger registers used to be written
+    and then never consulted."""
+    h, c = Harness(), None
+    try:
+        c = Client(DEVICE_IP)
+        c.write_reg(R.CCP, 1)
+        # this test deliberately waits in silence several times over; a
+        # real consumer polls CCP meanwhile, so raise the timeout rather
+        # than have our own heartbeat drop control mid-test
+        c.write_reg(R.HEARTBEAT_TIMEOUT, 30000)
+        c.write_reg(R.SCDA, R.ip_to_u32(DEVICE_IP))
+        c.write_reg(R.SCP, c.stream_port)
+        c.write_reg(R.REG_TRIGGER_SELECTOR, 0)          # FrameStart
+        c.write_reg(R.REG_TRIGGER_SOURCE, 2)            # Line2
+        c.write_reg(R.REG_TRIGGER_ACTIVATION, R.TRIGGER_ACTIVATION_RISING_EDGE)
+        c.write_reg(R.REG_TRIGGER_MODE, 1)              # On
+        c.write_reg(R.REG_FRAME_PERIOD_US, 10000)       # 100 fps if free-running
+        c.write_reg(R.REG_ACQUISITION_COMMAND, 1)
+
+        try:
+            c.receive_frame(timeout=1.0)
+            assert False, "device free-ran instead of waiting for Line2"
+        except TimeoutError:
+            pass
+
+        # a software trigger must be ignored: we are wired to Line2
+        c.write_reg(R.REG_TRIGGER_SOFTWARE, 1)
+        try:
+            c.receive_frame(timeout=1.0)
+            assert False, "TriggerSoftware fired while TriggerSource was Line2"
+        except TimeoutError:
+            pass
+
+        # the wrong line must be ignored too
+        h.device.set_line(1, 1)
+        try:
+            c.receive_frame(timeout=1.0)
+            assert False, "a Line1 edge fired a trigger configured for Line2"
+        except TimeoutError:
+            pass
+
+        c.stream.settimeout(5.0)
+        h.device.set_line(2, 1)
+        _leader, payload, _size_y, _pid = c.receive_frame()
+        assert len(payload) == WIDTH * HEIGHT
+
+        # exactly one frame per edge: the falling edge must not fire too
+        h.device.set_line(2, 0)
+        try:
+            c.receive_frame(timeout=1.0)
+            assert False, "a falling edge fired a RisingEdge trigger"
+        except TimeoutError:
+            pass
+
+        c.write_reg(R.REG_ACQUISITION_COMMAND, 0)
+    finally:
+        if c:
+            c.close()
+        h.close()
+
+
+def _armed_device(activation, inverter=0, source=2):
+    """a device configured for line triggering, with no sockets involved:
+    the activation matrix is pure logic and does not need UDP."""
+    device = NightGigEDevice(camera=StubCamera(), ip=DEVICE_IP,
+                             mac="02:00:00:00:00:09")
+    device.registers.write_u32(R.REG_TRIGGER_MODE, 1)
+    device.registers.write_u32(R.REG_TRIGGER_SOURCE, source)
+    device.registers.write_u32(R.REG_TRIGGER_ACTIVATION, activation)
+    device.lines[2]["inverter"] = inverter
+    device.acquiring = True
+    device.registers.write_u32(R.SCDA, R.ip_to_u32(DEVICE_IP))
+    device.registers.write_u32(R.SCP, 12345)
+    return device
+
+
+def test_trigger_activation_matrix():
+    """each of the five activations, driven high then low."""
+    now = time.monotonic()
+    cases = [
+        # activation,                          fires on rise, fires on fall
+        (R.TRIGGER_ACTIVATION_RISING_EDGE,     True,  False),
+        (R.TRIGGER_ACTIVATION_FALLING_EDGE,    False, True),
+        (R.TRIGGER_ACTIVATION_ANY_EDGE,        True,  True),
+    ]
+    for activation, on_rise, on_fall in cases:
+        device = _armed_device(activation)
+        assert not device.wants_frame(now), "armed device wanted a frame unbidden"
+        device.set_line(2, 1)
+        assert device.wants_frame(now) == on_rise, (
+            f"activation {activation}: rising edge should "
+            f"{'' if on_rise else 'not '}fire")
+        device.trigger_pending = False
+        device.set_line(2, 0)
+        assert device.wants_frame(now) == on_fall, (
+            f"activation {activation}: falling edge should "
+            f"{'' if on_fall else 'not '}fire")
+
+    # the level modes are a gated free-run, not a one-shot: they stay
+    # ready for as long as the line holds, and arm nothing on the edge.
+    for activation, active_level in ((R.TRIGGER_ACTIVATION_LEVEL_HIGH, 1),
+                                     (R.TRIGGER_ACTIVATION_LEVEL_LOW, 0)):
+        device = _armed_device(activation)
+        device.set_line(2, active_level)
+        assert device.wants_frame(now), "level gate should be open"
+        assert not device.trigger_pending, (
+            "a level activation must not arm a one-shot trigger")
+        # still open on a second look -- that is what makes it a free-run
+        device.next_frame_due = 0.0
+        assert device.wants_frame(now), "level gate closed after one frame"
+        device.set_line(2, 1 - active_level)
+        assert not device.wants_frame(now), "level gate should be shut"
+
+
+def test_line_inverter_flips_which_edge_fires():
+    """LineInverter is applied before edge detection, so an inverted line
+    with RisingEdge fires on the raw FALLING edge. This is what places the
+    customer's exposure mid-window instead of at the window edge."""
+    now = time.monotonic()
+    device = _armed_device(R.TRIGGER_ACTIVATION_RISING_EDGE, inverter=1)
+
+    # inverted and idle low means the effective level already reads high
+    assert device.line_level(2) == 1
+    device.set_line(2, 1)               # raw rise -> effective FALL
+    assert not device.wants_frame(now), "inverted line fired on the raw rise"
+    device.set_line(2, 0)               # raw fall -> effective RISE
+    assert device.wants_frame(now), "inverted line did not fire on the raw fall"
+
+
+def test_line_selector_addresses_exactly_one_line():
+    """LineMode/LineInverter/LineStatus are windows onto whichever line
+    LineSelector names; writing one must not disturb its neighbours."""
+    device = NightGigEDevice(camera=StubCamera(), ip=DEVICE_IP,
+                             mac="02:00:00:00:00:0a")
+
+    device.registers.write_u32(R.REG_LINE_SELECTOR, 2)
+    device._write_hooks[R.REG_LINE_INVERTER](1)
+    assert device.lines[2]["inverter"] == 1
+    for other in (1, 3, 4):
+        assert device.lines[other]["inverter"] == 0, (
+            f"writing LineInverter for Line2 also changed Line{other}")
+
+    # and reads come back through the same window
+    assert device._read_hooks[R.REG_LINE_INVERTER]() == 1
+    device.registers.write_u32(R.REG_LINE_SELECTOR, 3)
+    assert device._read_hooks[R.REG_LINE_INVERTER]() == 0
+
+    # LineStatus reports the effective level; LineStatusAll packs them
+    # with Line1 in bit 0
+    device.set_line(1, 1)
+    device.set_line(4, 1)
+    assert device._read_hooks[R.REG_LINE_STATUS_ALL]() == 0b1001 | (1 << 1)
+
+
+def _transfer_client(c, mode, block_count=1):
+    c.write_reg(R.CCP, 1)
+    c.write_reg(R.HEARTBEAT_TIMEOUT, 30000)
+    c.write_reg(R.SCDA, R.ip_to_u32(DEVICE_IP))
+    c.write_reg(R.SCP, c.stream_port)
+    c.write_reg(R.REG_TRANSFER_CONTROL_MODE, mode)
+    c.write_reg(R.REG_TRANSFER_BLOCK_COUNT, block_count)
+    c.write_reg(R.REG_FRAME_PERIOD_US, 20000)       # 50 fps
+    c.write_reg(R.REG_ACQUISITION_COMMAND, 1)
+
+
+def test_transfer_automatic_streams_without_being_asked():
+    """Basic and Automatic must behave exactly as before this feature
+    existed -- the customer's script sets Automatic."""
+    for mode in (R.TRANSFER_CONTROL_BASIC, R.TRANSFER_CONTROL_AUTOMATIC):
+        h, c = Harness(), None
+        try:
+            c = Client(DEVICE_IP)
+            _transfer_client(c, mode)
+            _leader, payload, _size_y, _pid = c.receive_frame(timeout=5.0)
+            assert len(payload) == WIDTH * HEIGHT, f"mode {mode} streamed nothing"
+            c.write_reg(R.REG_ACQUISITION_COMMAND, 0)
+        finally:
+            if c:
+                c.close()
+            h.close()
+
+
+def test_transfer_user_controlled_holds_blocks_until_asked():
+    h, c = Harness(), None
+    try:
+        c = Client(DEVICE_IP)
+        _transfer_client(c, R.TRANSFER_CONTROL_USER_CONTROLLED, block_count=2)
+
+        # acquisition is running, but nothing may leave the device
+        try:
+            c.receive_frame(timeout=1.5)
+            assert False, "UserControlled streamed without a TransferStart"
+        except TimeoutError:
+            pass
+        assert h.device.frames.qsize() > 0, "blocks should be queued, not dropped"
+        assert c.read_reg(R.REG_TRANSFER_QUEUE_COUNT) > 0, (
+            "TransferQueueCurrentBlockCount should report the held blocks")
+
+        # one TransferStart releases exactly TransferBlockCount blocks
+        c.write_reg(R.REG_TRANSFER_START, 1)
+        for index in range(2):
+            _l, payload, _s, _p = c.receive_frame(timeout=5.0)
+            assert len(payload) == WIDTH * HEIGHT, f"block {index} truncated"
+        try:
+            c.receive_frame(timeout=1.5)
+            assert False, "TransferStart released more than TransferBlockCount"
+        except TimeoutError:
+            pass
+
+        c.write_reg(R.REG_ACQUISITION_COMMAND, 0)
+    finally:
+        if c:
+            c.close()
+        h.close()
+
+
+def test_transfer_abort_discards_the_held_blocks():
+    h, c = Harness(), None
+    try:
+        c = Client(DEVICE_IP)
+        _transfer_client(c, R.TRANSFER_CONTROL_USER_CONTROLLED, block_count=8)
+        time.sleep(0.8)                     # let some blocks pile up
+        assert h.device.frames.qsize() > 0, "nothing was held to abort"
+
+        c.write_reg(R.REG_TRANSFER_ABORT, 1)
+        assert h.device.frames.qsize() == 0, "TransferAbort left blocks queued"
+
+        # and an abort also stops the transfer: a later block must not
+        # escape on the credit the aborted start would have had
+        try:
+            c.receive_frame(timeout=1.5)
+            assert False, "a block escaped after TransferAbort"
+        except TimeoutError:
+            pass
+
+        c.write_reg(R.REG_ACQUISITION_COMMAND, 0)
+    finally:
+        if c:
+            c.close()
+        h.close()
+
+
+def test_transfer_stop_holds_and_overflow_drops_the_oldest():
+    """a transfer held stopped long enough must overflow, and when it does
+    the device keeps the newest view of the scene rather than a stale one."""
+    device = NightGigEDevice(camera=StubCamera(), ip=DEVICE_IP,
+                             mac="02:00:00:00:00:0b")
+    device.registers.write_u32(R.REG_TRANSFER_CONTROL_MODE,
+                               R.TRANSFER_CONTROL_USER_CONTROLLED)
+    device.registers.write_u32(R.SCDA, R.ip_to_u32(DEVICE_IP))
+    device.registers.write_u32(R.SCP, 12345)
+    device._start_acquisition()
+    assert not device.transfer_ready(), "UserControlled started already flowing"
+
+    depth = device.frames.maxsize
+    assert depth >= 16, "the queue must buffer while a transfer is stopped"
+    for index in range(depth + 4):
+        device.capture(None, time.monotonic())
+    assert device.frames.qsize() == depth, "queue grew past its bound"
+
+    # TransferStart with the default block count releases exactly one
+    device.registers.write_u32(R.REG_TRANSFER_BLOCK_COUNT, 1)
+    device._transfer_start()
+    assert device.transfer_ready()
+    device.frames.get_nowait()
+    device.transfer_consume()
+    assert not device.transfer_ready(), "credit outlived its one block"
+
+
+def test_the_production_hdevelop_parameter_sequence_succeeds():
+    """the customer's photometric script configures the camera in this
+    exact order before grab_image_start. Four of these writes had no
+    register behind them at all, which is where the script died; this is
+    the direct regression test for 'will their script run unmodified'.
+
+    write_reg raises on a non-zero GVCP status, so reaching the end is the
+    assertion."""
+    h, c = Harness(), None
+    try:
+        c = Client(DEVICE_IP)
+        c.write_reg(R.CCP, 1)
+        for address, value, label in (
+                (R.REG_TRANSFER_CONTROL_MODE, R.TRANSFER_CONTROL_AUTOMATIC,
+                 "TransferControlMode Automatic"),
+                (R.REG_EXPOSURE_AUTO, 0, "ExposureAuto Off"),
+                (R.REG_ACQUISITION_MODE, 0, "AcquisitionMode Continuous"),
+                (R.REG_TRIGGER_SELECTOR, 0, "TriggerSelector FrameStart"),
+                (R.REG_TRIGGER_MODE, 1, "TriggerMode On"),
+                (R.REG_TRIGGER_SOURCE, 2, "TriggerSource Line2"),
+                (R.REG_LINE_SELECTOR, 2, "LineSelector Line2"),
+                (R.REG_LINE_INVERTER, 1, "LineInverter 1")):
+            try:
+                c.write_reg(address, value)
+            except RuntimeError as error:
+                assert False, f"{label} rejected: {error}"
+
+        # and the configuration must have actually landed, not merely been
+        # accepted and dropped
+        assert h.device.trigger_line == 2, "TriggerSource did not select Line2"
+        assert h.device.lines[2]["inverter"] == 1, "LineInverter did not apply"
+        assert h.device.lines[1]["inverter"] == 0, "LineInverter hit the wrong line"
+        assert c.read_reg(R.REG_TRANSFER_CONTROL_MODE) == R.TRANSFER_CONTROL_AUTOMATIC
+    finally:
+        if c:
+            c.close()
+        h.close()
+
+
+def test_halcon_device_name_matches_the_production_convention():
+    """HALCON scripts hardcode this string in open_framegrabber, so the
+    emulator has to reproduce the convention exactly: MAC with separators
+    stripped, then vendor and model with spaces stripped. The expected
+    value here is the one from the customer's production script."""
+    device = NightGigEDevice(camera=StubCamera(), ip=DEVICE_IP,
+                             mac="1C:0F:AF:7A:E6:BC",
+                             vendor="Lucid Vision Labs", model="TRI050SM")
+    assert device.halcon_name == "1c0faf7ae6bc_LucidVisionLabs_TRI050SM", (
+        f"got {device.halcon_name}")
+    assert device.info()["halcon_name"] == device.halcon_name
+
+    # dashes are a legal MAC separator too
+    dashed = NightGigEDevice(camera=StubCamera(), ip=DEVICE_IP,
+                             mac="1c-0f-af-7a-e6-bc",
+                             vendor="Lucid Vision Labs", model="TRI050SM")
+    assert dashed.halcon_name == device.halcon_name
 
 
 def test_heartbeat_timeout_releases_control():

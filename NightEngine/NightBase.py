@@ -15,6 +15,10 @@ import numpy as np
 import pybullet as p
 import glfw
 
+# must match MAX_POINT_LIGHTS in the lit material shaders
+MAX_POINT_LIGHTS = 8
+
+
 class NightBase:
     def __init__(self,
                  width=900,
@@ -61,6 +65,9 @@ class NightBase:
 
         self.width, self.height = width, height
 
+        # previous state per key, for key_just_pressed
+        self._key_states = {}
+
         # ---------------- scene ---------------- #
         
         self._scene = None
@@ -70,14 +77,10 @@ class NightBase:
             "diffuse": [1.0, 1.0, 1.0],
             "specular": [1.0, 1.0, 1.0]
         }
-        # point light (flash/strobe/work light). color is rgb
-        # premultiplied by intensity; black = off.
-        self.light_point = {
-            "position": [0, 10, 0],
-            "color": [0.0, 0.0, 0.0],
-            "attenuation_linear": 0.02,
-            "attenuation_quadratic": 0.002,
-        }
+        # point lights (flash/strobe/work lights/inspection ring). color
+        # is rgb premultiplied by intensity; black = off. lights[0] is
+        # also reachable as self.light_point for backward compatibility.
+        self.lights = [self.make_light()]
 
         # ------------------------------------------------------------
         # opengl states
@@ -109,12 +112,49 @@ class NightBase:
         self.vision_cameras = []
         self.vision_server = None
         self.gige_server = None
+        self.gardasoft_server = None
 
         # ------------------------------------------------------------
         # init pybullet
         # ------------------------------------------------------------
 
         p.connect(p.DIRECT)
+
+    # ------------------------------------------------------------
+    # point lights
+    # ------------------------------------------------------------
+
+    @staticmethod
+    def make_light(position=[0, 10, 0], color=[0.0, 0.0, 0.0],
+                   attenuation_linear=0.02, attenuation_quadratic=0.002):
+        """a point light's parameter dict, in the shape the shaders expect."""
+        return {"position": list(position),
+                "color": list(color),
+                "attenuation_linear": attenuation_linear,
+                "attenuation_quadratic": attenuation_quadratic}
+
+    @property
+    def light_point(self):
+        """the first point light. kept so code written against the old
+        single-light api keeps working, including in-place mutation such
+        as light_point["color"] = [...] -- this returns the live dict."""
+        return self.lights[0]
+
+    @light_point.setter
+    def light_point(self, value):
+        self.lights[0] = value
+
+    def set_light_count(self, count):
+        """grows or shrinks the point light list. extra lights start off
+        (black), so adding them changes nothing until they are given a
+        colour."""
+        if count > MAX_POINT_LIGHTS:
+            raise ValueError(f"at most {MAX_POINT_LIGHTS} point lights are "
+                             f"supported by the shaders (asked for {count})")
+        while len(self.lights) < count:
+            self.lights.append(self.make_light())
+        del self.lights[count:]
+        return self.lights
 
     def setup(self):
         # override
@@ -188,10 +228,27 @@ class NightBase:
             # the gl thread)
             if self.vision_server:
                 self.vision_server.process()
+            if self.gardasoft_server:
+                self.gardasoft_server.process()
             if self.gige_server:
                 self.gige_server.process()
             # draw
             glfw.swap_buffers(self.window)
+
+    def _set_point_light_uniforms(self, program):
+        """uploads the active point lights as a shader array. only the
+        active count is sent; the shader loops to point_light_count."""
+        count = min(len(self.lights), MAX_POINT_LIGHTS)
+        NightUtils.set_uniform(program, "point_light_count", "int", count)
+        for index in range(count):
+            light = self.lights[index]
+            base = f"point_lights[{index}]"
+            NightUtils.set_uniform(program, f"{base}.position", "vec3", light["position"])
+            NightUtils.set_uniform(program, f"{base}.color", "vec3", light["color"])
+            NightUtils.set_uniform(program, f"{base}.attenuation_linear", "float",
+                                   light["attenuation_linear"])
+            NightUtils.set_uniform(program, f"{base}.attenuation_quadratic", "float",
+                                   light["attenuation_quadratic"])
 
     def _get_physics_objects(self):
         return [obj for obj in self._scene.get_descendants(include_self=False)
@@ -341,11 +398,8 @@ class NightBase:
                     NightUtils.set_uniform(obj.material.program, "matrix_light", "mat4", matrix_light)
                     NightUtils.set_uniform(obj.material.program, "shadow_map", "sampler2D", [self.shadow.texture, 7])
                     NightUtils.set_uniform(obj.material.program, "shadow_bias", "float", self.shadow_bias)
-                # point light
-                NightUtils.set_uniform(obj.material.program, "light_point.position", "vec3", self.light_point["position"])
-                NightUtils.set_uniform(obj.material.program, "light_point.color", "vec3", self.light_point["color"])
-                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_linear", "float", self.light_point["attenuation_linear"])
-                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_quadratic", "float", self.light_point["attenuation_quadratic"])
+                # point lights
+                self._set_point_light_uniforms(obj.material.program)
 
             if isinstance(obj.material, NightMaterialTexture):
                 # set directional light
@@ -366,11 +420,8 @@ class NightBase:
                     NightUtils.set_uniform(obj.material.program, "matrix_light", "mat4", matrix_light)
                     NightUtils.set_uniform(obj.material.program, "shadow_map", "sampler2D", [self.shadow.texture, 7])
                     NightUtils.set_uniform(obj.material.program, "shadow_bias", "float", self.shadow_bias)
-                # point light
-                NightUtils.set_uniform(obj.material.program, "light_point.position", "vec3", self.light_point["position"])
-                NightUtils.set_uniform(obj.material.program, "light_point.color", "vec3", self.light_point["color"])
-                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_linear", "float", self.light_point["attenuation_linear"])
-                NightUtils.set_uniform(obj.material.program, "light_point.attenuation_quadratic", "float", self.light_point["attenuation_quadratic"])
+                # point lights
+                self._set_point_light_uniforms(obj.material.program)
                 # texture setup
                 NightUtils.set_uniform(obj.material.program, "uv_repeat", "vec2", [1.0, 1.0])
                 NightUtils.set_uniform(obj.material.program, "uv_offset", "vec2", [0.0, 0.0])
@@ -423,7 +474,7 @@ class NightBase:
         return self.vision_server
 
     def start_gige_server(self, devices, bind_broadcast=True, verbose=True,
-                          bind_any=False):
+                          bind_any=False, log_gvcp=False):
         """exposes vision cameras as GigE Vision devices, discoverable by
         any standard consumer (HALCON, pylon Viewer, eBUS Player, Aravis).
 
@@ -442,8 +493,21 @@ class NightBase:
         self.gige_server = NightGigEServer(self, devices=devices,
                                            bind_broadcast=bind_broadcast,
                                            verbose=verbose,
-                                           bind_any=bind_any)
+                                           bind_any=bind_any,
+                                           log_gvcp=log_gvcp)
         return self.gige_server
+
+    def start_gardasoft_controller(self, ip="127.0.0.1", serial=12345,
+                                   mac="00:0B:75:01:80:99", http_port=80,
+                                   verbose=True, bind_any=False):
+        """exposes an emulated Gardasoft CC320 trigger timing controller on
+        the network. Bind its outputs to scene lights and camera triggers
+        with controller.bind_light(...) / controller.bind_camera(...)."""
+        from NightEngine.Gardasoft.server import NightGardasoftServer
+        self.gardasoft_server = NightGardasoftServer(
+            self, ip=ip, serial=serial, mac=mac, http_port=http_port,
+            verbose=verbose, bind_any=bind_any)
+        return self.gardasoft_server
 
     def vision_trigger(self, name, value):
         """override to implement custom vision-triggered behavior
@@ -454,6 +518,20 @@ class NightBase:
     def set_gravity(self, x=0.0, y=-9.8, z=0.0):
         """wrpper for pybullet setGravity"""
         p.setGravity(x, y, z)
+
+    def key_just_pressed(self, key):
+        """True only on the frame a key goes down.
+
+        Input here is polled rather than event-driven, so a held key reads
+        as pressed every frame; anything that should happen once per press
+        needs the previous state kept somewhere. Keeping it here rather
+        than re-latching it in each example also means one key cannot be
+        watched by two callers in the same frame -- the second would see
+        the state already consumed."""
+        down = glfw.get_key(self.window, key) == glfw.PRESS
+        was_down = self._key_states.get(key, False)
+        self._key_states[key] = down
+        return down and not was_down
         
     def _callback_framebuffer_size(self, window, width, height):
         """updates viewport and recalculates camera aspect ratio."""

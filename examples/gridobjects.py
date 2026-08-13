@@ -37,10 +37,14 @@ class MyObject(NightObject):
             self.apply_force(forward, self.get_position(), local=False)
         if self.check_pressed(window, glfw.KEY_K):
             self.apply_force(-forward, self.get_position(), local=False)
+        # J moves left, L moves right. These were swapped while
+        # get_right_vector() returned the opposite of on-screen right;
+        # now that the camera reports the correct right vector, the
+        # compensation is removed.
         if self.check_pressed(window, glfw.KEY_J):
-            self.apply_force(side, self.get_position(), local=False)
-        if self.check_pressed(window, glfw.KEY_L):
             self.apply_force(-side, self.get_position(), local=False)
+        if self.check_pressed(window, glfw.KEY_L):
+            self.apply_force(side, self.get_position(), local=False)
         if self.check_pressed(window, glfw.KEY_Y):
             self.apply_force([0, 1000, 0], self.get_position(), local=False)
 

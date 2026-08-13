@@ -44,9 +44,13 @@ class NightCamera(NightObject):
             return
         forward /= norm
         world_up = np.array([0.0, 1.0, 0.0]) if abs(forward[1]) < 0.99 else np.array([0.0, 0.0, 1.0])
-        right = np.cross(world_up, forward)
+        # right = forward x up, matching NightMatrix.get_lookat, which builds
+        # the matrix actually used to render. Using cross(up, forward) here
+        # (as this did previously) stored a right vector pointing the
+        # opposite way from on-screen right.
+        right = np.cross(forward, world_up)
         right /= np.linalg.norm(right)
-        true_up = np.cross(forward, right)
+        true_up = np.cross(right, forward)
         true_up /= np.linalg.norm(true_up)
         self.transform[0:3, 0] = right
         self.transform[0:3, 1] = true_up
@@ -89,12 +93,14 @@ class NightCamera(NightObject):
         # backward
         if self.check_pressed(window, glfw.KEY_S):
             self.translate(0, 0, -amount_movement)
-        # left
+        # left. translate along local X moves along the right vector, so
+        # strafing left is negative. These signs were inverted while the
+        # stored right vector pointed opposite to on-screen right.
         if self.check_pressed(window, glfw.KEY_A):
-            self.translate(amount_movement, 0, 0)
+            self.translate(-amount_movement, 0, 0)
         # right
         if self.check_pressed(window, glfw.KEY_D):
-            self.translate(-amount_movement, 0, 0)
+            self.translate(amount_movement, 0, 0)
         # up
         if self.check_pressed(window, glfw.KEY_SPACE):
             self.translate(0, amount_movement, 0, local=False)
@@ -126,12 +132,15 @@ class NightCamera(NightObject):
         
         self.transform[0:3, 2] = front
 
-        # update right and up
+        # update right and up. right = forward x up to match
+        # NightMatrix.get_lookat and therefore on-screen right; true_up is
+        # algebraically the same either way (both reduce to
+        # up - forward*(forward.up)), so the rendered view is unchanged.
         front = np.array(self.transform[0:3, 2])
         up = np.array([0, 1, 0])
-        right = np.cross(up, front)
+        right = np.cross(front, up)
         right /= np.linalg.norm(right)
-        true_up = np.cross(front, right)
+        true_up = np.cross(right, front)
         true_up /= np.linalg.norm(true_up)
 
         self.transform[0:3, 0] = right
